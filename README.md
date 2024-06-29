@@ -1,7 +1,3 @@
-#datepicker-plugin
-
-This is a date picker plugin for Obsidian (https://obsidian.md).
-
 This plugin provides a date picker that shows when the editor cursor is placed on a date or date/time value in a markdown note.
 
 
