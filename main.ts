@@ -136,19 +136,19 @@ class DatepickerCMPlugin implements PluginValue {
 
 export const datepickerCMPlugin = ViewPlugin.fromClass(DatepickerCMPlugin);
 
-interface DatepickerSettings {
-	mySetting: string;
-}
+// interface DatepickerSettings {
+// 	mySetting: string;
+// }
 
-const DEFAULT_SETTINGS: DatepickerSettings = {
-	mySetting: 'default'
-}
+// const DEFAULT_SETTINGS: DatepickerSettings = {
+// 	mySetting: 'default'
+// }
 
 export default class DatepickerPlugin extends Plugin {
-	settings: DatepickerSettings;
+	// settings: DatepickerSettings;
 
 	async onload() {
-		await this.loadSettings();
+		// await this.loadSettings();
 		app = this.app;
 
 		this.registerEditorExtension(datepickerCMPlugin);
@@ -190,21 +190,21 @@ export default class DatepickerPlugin extends Plugin {
 			}
 		});
 
-		// This adds a settings tab so the user can configure various aspects of the plugin
-		this.addSettingTab(new DatepickerSettingsTab(this.app, this));
+		// // This adds a settings tab so the user can configure various aspects of the plugin
+		// this.addSettingTab(new DatepickerSettingsTab(this.app, this));
 	}
 
 	onunload() {
 
 	}
 
-	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
-	}
+	// async loadSettings() {
+	// 	this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+	// }
 
-	async saveSettings() {
-		await this.saveData(this.settings);
-	}
+	// async saveSettings() {
+	// 	await this.saveData(this.settings);
+	// }
 }
 
 
@@ -286,31 +286,31 @@ class DatepickerModal extends Modal {
 	}
 }
 
-class DatepickerSettingsTab extends PluginSettingTab {
-	plugin: DatepickerPlugin;
+// class DatepickerSettingsTab extends PluginSettingTab {
+// 	plugin: DatepickerPlugin;
 
-	constructor(app: App, plugin: DatepickerPlugin) {
-		super(app, plugin);
-		this.plugin = plugin;
-	}
+// 	constructor(app: App, plugin: DatepickerPlugin) {
+// 		super(app, plugin);
+// 		this.plugin = plugin;
+// 	}
 
-	display(): void {
-		const { containerEl } = this;
+// 	display(): void {
+// 		const { containerEl } = this;
 
-		containerEl.empty();
+// 		containerEl.empty();
 
-		new Setting(containerEl)
-			.setName('Setting #1')
-			.setDesc('It\'s a secret')
-			.addText(text => text
-				.setPlaceholder('Enter your secret')
-				.setValue(this.plugin.settings.mySetting)
-				.onChange(async (value) => {
-					this.plugin.settings.mySetting = value;
-					await this.plugin.saveSettings();
-				}));
-	}
-}
+// 		new Setting(containerEl)
+// 			.setName('Setting #1')
+// 			.setDesc('It\'s a secret')
+// 			.addText(text => text
+// 				.setPlaceholder('Enter your secret')
+// 				.setValue(this.plugin.settings.mySetting)
+// 				.onChange(async (value) => {
+// 					this.plugin.settings.mySetting = value;
+// 					await this.plugin.saveSettings();
+// 				}));
+// 	}
+// }
 
 /*
 TODOS:
