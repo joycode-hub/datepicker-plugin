@@ -6,3 +6,5 @@ This plugin provides a date picker that shows when the editor cursor is placed o
 You can also insert a new date or date and time using datepicker plugin.
 
 ![datepicker-insert-demo](./datepicker-insert-demo.gif)
+
+For issues or bugs with the plugin, feature requests or suggestions, please open an issue.
