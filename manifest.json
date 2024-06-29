@@ -1,0 +1,11 @@
+{
+	"id": "datepicker",
+	"name": "Datepicker",
+	"version": "0.1.0",
+	"minAppVersion": "1.1.9",
+	"description": "Use a date picker to modify and insert date/time anywhere in your markdown notes.",
+	"author": "Mostafa Mohamed",
+	"authorUrl": "https://obsidian.md",
+	"fundingUrl": "https://obsidian.md/pricing",
+	"isDesktopOnly": false
+}
