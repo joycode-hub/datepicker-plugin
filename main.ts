@@ -1,4 +1,4 @@
-import { App, Editor, EditorPosition, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, moment } from 'obsidian';
+import { App, Editor, EditorPosition, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, moment, Platform } from 'obsidian';
 import {
 	ViewUpdate,
 	PluginValue,
@@ -219,6 +219,10 @@ class DatepickerModal extends Modal {
 		modalEl.style.minWidth = '0px';
 		modalEl.style.minHeight = '0px';
 		modalEl.style.maxWidth = '225px';
+		// Fix for modal being too tall on mobile (only tested on android)
+		if (Platform.isMobile) {
+					modalEl.style.maxHeight = '30px';
+		}
 		modalEl.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape') {
 				this.escPressed = true;
@@ -238,7 +242,6 @@ class DatepickerModal extends Modal {
 
 		modalEl.style.width = pickerInput.style.width;
 		modalEl.style.height = pickerInput.style.height;
-		// modalEl.style.width = '225px';
 		modalEl.appendChild(pickerInput);
 
 		// this makes sure the modal doesn't go out of the window or draws out of screen bounds
