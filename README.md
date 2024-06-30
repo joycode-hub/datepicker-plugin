@@ -9,6 +9,7 @@ You can also insert a new date or date and time using datepicker plugin.
 
 For issues or bugs with the plugin, feature requests or suggestions, please open an issue.
 
+[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png" alt="BuyMeACoffee" width="100">](https://www.buymeacoffee.com/joycode)
+
 Your support is welcome and apreciated!
 
-[<img src="https://cdn.buymeacoffee.com/buttons/v2/default-violet.png" alt="BuyMeACoffee" width="100">](https://www.buymeacoffee.com/liamcain)
