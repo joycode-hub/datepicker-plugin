@@ -114,7 +114,9 @@ class DatepickerCMPlugin implements PluginValue {
 				const pos = view.coordsAtPos(update.state.selection.main.from)
 				if (pos) new DatepickerModal(app, pos, dateToPicker
 					, (result) => {
-						const dateFromPicker = moment(result).format(formatToUser);
+						const resultFromPicker = moment(result);
+						if(!resultFromPicker.isValid()) return;
+						const dateFromPicker = resultFromPicker.format(formatToUser);
 						if(dateFromPicker === match) return;
 						editor?.replaceRange(dateFromPicker
 							, {
@@ -124,7 +126,7 @@ class DatepickerCMPlugin implements PluginValue {
 								line: cursorPosition.line, ch: this.endIndex
 							})
 					}).open();
-			}, 1)
+			}, 10)
 
 		}
 	}
@@ -138,7 +140,6 @@ export const datepickerCMPlugin = ViewPlugin.fromClass(DatepickerCMPlugin);
 
 
 export default class DatepickerPlugin extends Plugin {
-	// settings: DatepickerSettings;
 
 	async onload() {
 		// await this.loadSettings();
