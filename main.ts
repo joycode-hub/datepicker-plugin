@@ -1,4 +1,4 @@
-import { App, Editor, EditorPosition, MarkdownView, Modal, Notice, Plugin, PluginSettingTab, Setting, moment, Platform } from 'obsidian';
+import { App, Editor, EditorPosition, MarkdownView, Modal, Plugin, PluginSettingTab, Setting, moment, Platform } from 'obsidian';
 import {
 	ViewUpdate,
 	PluginValue,
@@ -7,7 +7,12 @@ import {
 } from "@codemirror/view";
 
 let app: App;
+let settings: DatepickerPluginSettings;
 let datepickerIsOpen = false;
+// used for Show Datepicker only when ctrl+alt is pressed in settings
+let ctrlKeyPressed = false;
+let altKeyPressed = false;
+
 class DatepickerCMPlugin implements PluginValue {
 	constructor(view: EditorView) {
 
@@ -28,19 +33,22 @@ class DatepickerCMPlugin implements PluginValue {
 		if (app === undefined) return;
 		if (editor === undefined) return;
 		if (cursorPosition === undefined) return;
-		// means this is not realy a selection change update, 
-		// maybe this check is not realy neccessary as we already check update type
+		// means this is not a selection change update, 
+		// maybe this check is not neccessary as we already check update type
 		if (cursorPosition === this.previousCursorPosition) return;
-		// this is to prevent showing datepicker when user is making a ranged selection
+		// this is to prevent showing datepicker when user 
+		// is making a ranged selection that starts outside datetime text
 		if (update.view.state.selection.main.from != update.view.state.selection.main.to) return;
 
+		if (settings.showOnlyWhenModifierPressed)
+			if (!ctrlKeyPressed && !altKeyPressed) return;
 
 		/*determine if text around cursor position is a date/time,
 		*/
 
 		let rangeAroundCursor = 19;
 		function getTextAroundCursor(): string {
-			if (!cursorPosition) return "";
+			if (cursorPosition === undefined) return "";
 			return editor?.getLine(cursorPosition.line)
 				.substring(cursorPosition.ch - rangeAroundCursor, cursorPosition.ch + rangeAroundCursor) ?? "";
 		}
@@ -119,9 +127,9 @@ class DatepickerCMPlugin implements PluginValue {
 				if (pos) new DatepickerModal(app, pos, dateToPicker
 					, (result) => {
 						const resultFromPicker = moment(result);
-						if(!resultFromPicker.isValid()) return;
+						if (!resultFromPicker.isValid()) return;
 						const dateFromPicker = resultFromPicker.format(formatToUser);
-						if(dateFromPicker === match) return;
+						if (dateFromPicker === match) return;
 						editor?.replaceRange(dateFromPicker
 							, {
 								line: cursorPosition.line, ch: this.startIndex
@@ -142,12 +150,25 @@ class DatepickerCMPlugin implements PluginValue {
 
 export const datepickerCMPlugin = ViewPlugin.fromClass(DatepickerCMPlugin);
 
+interface DatepickerPluginSettings {
+	showOnlyWhenModifierPressed: boolean;
+	immediatelyShowCalendar: boolean;
+}
+
+const DEFAULT_SETTINGS: DatepickerPluginSettings = {
+	showOnlyWhenModifierPressed: false,
+	immediatelyShowCalendar: false
+}
 
 export default class DatepickerPlugin extends Plugin {
 
 	async onload() {
-		// await this.loadSettings();
+
+		await this.loadSettings();
 		app = this.app;
+		this.setModifierKeysEvents();
+
+		// used if Show Datepicker only when ctrl+alt is pressed in settings
 
 		this.registerEditorExtension(datepickerCMPlugin);
 
@@ -187,11 +208,54 @@ export default class DatepickerPlugin extends Plugin {
 				}
 			}
 		});
+
+		this.addSettingTab(new DatepickerSettingTab(this.app, this));
 	}
 
 	onunload() {
-
+		document.removeEventListener('keydown', (event) => {
+			if (event.ctrlKey) ctrlKeyPressed = true;
+			if (event.altKey) altKeyPressed = true;
+		});
+		document.removeEventListener('keyup', (event) => {
+			if (event.ctrlKey) ctrlKeyPressed = false;
+			if (event.altKey) altKeyPressed = false;
+		});
 	}
+
+	async loadSettings() {
+		settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData());
+		this.setModifierKeysEvents();
+	}
+
+	async saveSettings() {
+		await this.saveData(settings);
+	}
+
+	private setModifierKeysEvents() {
+		if (settings.showOnlyWhenModifierPressed) {
+			document.addEventListener('keydown', (event) => {
+				if (event.ctrlKey) ctrlKeyPressed = true;
+				if (event.altKey) altKeyPressed = true;
+			});
+			document.addEventListener('keyup', (event) => {
+				if (event.ctrlKey) ctrlKeyPressed = false;
+				if (event.altKey) altKeyPressed = false;
+			});
+		} else {
+			document.removeEventListener('keydown', (event) => {
+				if (event.ctrlKey) ctrlKeyPressed = true;
+				if (event.altKey) altKeyPressed = true;
+			});
+			document.removeEventListener('keyup', (event) => {
+				if (event.ctrlKey) ctrlKeyPressed = false;
+				if (event.altKey) altKeyPressed = false;
+			});
+			ctrlKeyPressed = false;
+			altKeyPressed = false;
+		}
+	}
+
 }
 
 
@@ -226,7 +290,7 @@ class DatepickerModal extends Modal {
 		modalEl.style.maxWidth = '225px';
 		// Fix for modal being too tall on mobile (only tested on android)
 		if (Platform.isMobile) {
-					modalEl.style.maxHeight = '30px';
+			modalEl.style.maxHeight = '30px';
 		}
 		modalEl.addEventListener('keydown', (event) => {
 			if (event.key === 'Escape') {
@@ -236,7 +300,6 @@ class DatepickerModal extends Modal {
 		const { pickerInput } = this;
 		if (this.datetime.length <= 10) pickerInput.type = 'date';
 		else pickerInput.type = 'datetime-local';
-
 		pickerInput.value = this.datetime;
 		pickerInput.addEventListener('keydown', (event) => {
 			if (event.key === 'Enter') {
@@ -260,6 +323,11 @@ class DatepickerModal extends Modal {
 			modalEl.style.left = (this.pos.left - modalEl.getBoundingClientRect().width) + 'px';
 		} else modalEl.style.left = this.pos.left + 'px';
 
+		setTimeout(() => {
+			if(settings.immediatelyShowCalendar) pickerInput.showPicker();
+		},10)
+		
+
 	}
 
 	onClose() {
@@ -276,6 +344,40 @@ class DatepickerModal extends Modal {
 	}
 }
 
+class DatepickerSettingTab extends PluginSettingTab {
+	plugin: DatepickerPlugin;
+
+	constructor(app: App, plugin: DatepickerPlugin) {
+		super(app, plugin);
+		this.plugin = plugin;
+	}
+
+	display(): void {
+		const { containerEl } = this;
+
+		containerEl.empty();
+
+		new Setting(containerEl)
+			.setName('Show only when Ctrl+Alt are pressed')
+			.setDesc('This will only show the Datepicker when Control and Alt are pressed at the same time')
+			.addToggle((toggle) => toggle
+				.setValue(settings.showOnlyWhenModifierPressed)
+				.onChange(async (value) => {
+					settings.showOnlyWhenModifierPressed = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Immediately show calendar')
+			.setDesc('This will immediately show the calendar when the datepicker appears')
+			.addToggle((toggle) => toggle
+				.setValue(settings.immediatelyShowCalendar)
+				.onChange(async (value) => {
+					settings.immediatelyShowCalendar = value;
+					await this.plugin.saveSettings();
+				}));
+	}
+}
 
 /*
 TODOS:
