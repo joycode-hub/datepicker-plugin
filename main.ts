@@ -24,11 +24,15 @@ class DatepickerCMPlugin implements PluginValue {
 		const { view } = update;
 		const editor = app.workspace.getActiveViewOfType(MarkdownView)?.editor;
 		const cursorPosition = editor?.getCursor();
-		if (cursorPosition === this.previousCursorPosition) return;
 		// Safety checks
-		if (!app) return;
-		if (!cursorPosition) return;
-		if (!editor) return;
+		if (app === undefined) return;
+		if (editor === undefined) return;
+		if (cursorPosition === undefined) return;
+		// means this is not realy a selection change update, 
+		// maybe this check is not realy neccessary as we already check update type
+		if (cursorPosition === this.previousCursorPosition) return;
+		// this is to prevent showing datepicker when user is making a ranged selection
+		if (update.view.state.selection.main.from != update.view.state.selection.main.to) return;
 
 
 		/*determine if text around cursor position is a date/time,
@@ -153,8 +157,8 @@ export default class DatepickerPlugin extends Plugin {
 			editorCallback: (editor: Editor) => {
 				// @ts-expect-error, not typed
 				const editorView = editor.cm as EditorView;
-				const cursorPosition = editorView.state.selection.main.from;
-				if (!cursorPosition) return;
+				const cursorPosition = editorView.state.selection.main.to;
+				if (cursorPosition === undefined) return;
 				const pos = editorView.coordsAtPos(cursorPosition);
 				if (!pos) return;
 				if (!datepickerIsOpen) {
@@ -171,8 +175,8 @@ export default class DatepickerPlugin extends Plugin {
 			editorCallback: (editor: Editor) => {
 				// @ts-expect-error, not typed
 				const editorView = editor.cm as EditorView;
-				const cursorPosition = editorView.state.selection.main.from;
-				if (!cursorPosition) return;
+				const cursorPosition = editorView.state.selection.main.to;
+				if (cursorPosition === undefined) return;
 				const pos = editorView.coordsAtPos(cursorPosition);
 				if (!pos) return;
 				if (!datepickerIsOpen) {
