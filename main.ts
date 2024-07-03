@@ -359,7 +359,7 @@ class DatepickerSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Show only when Ctrl+Alt are pressed')
-			.setDesc('This will only show the Datepicker when Control and Alt are pressed at the same time')
+			.setDesc('Only show the Datepicker when Control and Alt are pressed at the same time')
 			.addToggle((toggle) => toggle
 				.setValue(settings.showOnlyWhenModifierPressed)
 				.onChange(async (value) => {
@@ -369,7 +369,7 @@ class DatepickerSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Immediately show calendar')
-			.setDesc('This will immediately show the calendar when the datepicker appears')
+			.setDesc('Immediately show the calendar when the datepicker appears')
 			.addToggle((toggle) => toggle
 				.setValue(settings.immediatelyShowCalendar)
 				.onChange(async (value) => {
