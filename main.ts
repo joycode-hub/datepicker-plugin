@@ -268,9 +268,9 @@ class Datepicker {
 
 		// delay is necessary because showing immediately doesn't show the calendar
 		// in the correct position, maybe it shows the calendar before the dom is updated
-		setTimeout(() => {
-			if (DatepickerPlugin.settings.immediatelyShowCalendar) pickerInput.showPicker();
-		}, 10)
+		// setTimeout(() => {
+		// 	if (DatepickerPlugin.settings.immediatelyShowCalendar) pickerInput.showPicker();
+		// }, 10)
 
 	}
 
@@ -289,19 +289,19 @@ class DatepickerSettingTab extends PluginSettingTab {
 
 		containerEl.empty();
 
-		new Setting(containerEl)
-			.setName('Immediately show calendar')
-			.setDesc('Immediately show the calendar when the datepicker appears')
-			.addToggle((toggle) => toggle
-				.setValue(DatepickerPlugin.settings.immediatelyShowCalendar)
-				.onChange(async (value) => {
-					DatepickerPlugin.settings.immediatelyShowCalendar = value;
-					await this.plugin.saveSettings();
-				}));
+		// new Setting(containerEl)
+		// 	.setName('Immediately show calendar')
+		// 	.setDesc('Immediately show the calendar when the datepicker appears')
+		// 	.addToggle((toggle) => toggle
+		// 		.setValue(DatepickerPlugin.settings.immediatelyShowCalendar)
+		// 		.onChange(async (value) => {
+		// 			DatepickerPlugin.settings.immediatelyShowCalendar = value;
+		// 			await this.plugin.saveSettings();
+		// 		}));
 
 		new Setting(containerEl)
 			.setName('Autofocus')
-			.setDesc('Automatically focus the datepicker whenever the datepicker appears')
+			.setDesc('Automatically focus the datepicker whenever the datepicker opens')
 			.addToggle((toggle) => toggle
 				.setValue(DatepickerPlugin.settings.autofocus)
 				.onChange(async (value) => {
