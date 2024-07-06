@@ -1,4 +1,4 @@
-This plugin provides a date picker that shows when the editor cursor is placed on a date or date/time value in a markdown note.
+This plugin provides a date picker that appears automatically when the editor cursor is placed on a date or date/time value in a markdown note.
 
 
 ![datepicker-demo](./datepicker-demo.gif)
