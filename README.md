@@ -1,5 +1,5 @@
-This plugin provides a date picker that appears automatically when the editor cursor is placed on a date or date/time value in a markdown note.
-
+Use a date picker to edit and insert date and time anywhere in your markdown notes.
+The date picker automatically appears whenever the editor cursor is placed in a date and time text.
 
 ![datepicker-demo](./datepicker-demo.gif)
 
