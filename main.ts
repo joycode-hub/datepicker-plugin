@@ -9,7 +9,27 @@ import {
 
 class DatepickerCMPlugin implements PluginValue {
 
+	private view: EditorView;
+	private previousDocumentTop: number | undefined;
+	datepickerScrollPositionHandler = () => {
+		const datepickerContainer = activeDocument.getElementById('datepicker-container');
+		if (datepickerContainer) {
+			const { documentTop } = this.view;
+			if (this.previousDocumentTop === undefined) {
+				this.previousDocumentTop = documentTop;
+				return;
+			}
+			console
+			datepickerContainer.style.top =
+				`${parseFloat(datepickerContainer.style.top) + documentTop - this.previousDocumentTop}px`;
+			this.previousDocumentTop = documentTop;
+
+		} else this.previousDocumentTop = undefined;
+	}
+
 	constructor(view: EditorView) {
+		this.view = view;
+		view.scrollDOM.addEventListener("scroll", this.datepickerScrollPositionHandler);
 	}
 
 	// start and end index of the matching datetime on the current line
@@ -18,12 +38,12 @@ class DatepickerCMPlugin implements PluginValue {
 
 	update(update: ViewUpdate) {
 		if (!update.selectionSet) return;
+		const datepicker = new Datepicker();
 
 		const { view } = update;
 		const columnNumber = view.state.selection.ranges[0].head - view.state.doc.lineAt(view.state.selection.main.head).from;
 		const cursorPosition = view.state.selection.main.head;
 		const line = view.state.doc.lineAt(cursorPosition);
-		const datepicker = new Datepicker();
 
 		/*determine if text around cursor position is a date/time,
 		*/
@@ -90,7 +110,8 @@ class DatepickerCMPlugin implements PluginValue {
 					return pos;
 				},
 				write: pos => {
-					if (pos) datepicker.open(pos, dateToPicker
+					if (!pos) return;
+					datepicker.open(pos, dateToPicker
 						, (result) => {
 							const resultFromPicker = moment(result);
 							if (!resultFromPicker.isValid()) return;
@@ -196,9 +217,29 @@ export default class DatepickerPlugin extends Plugin {
 class Datepicker {
 
 	private onSubmit: (result: string) => void;
+	private isOpen = false;
+	private pickerContainer: HTMLSpanElement;
+	private pickerInput: HTMLInputElement;
 
 	constructor() {
 		this.closeAll();
+	}
+
+	public isOpened(): boolean {
+		return this.isOpen;
+	}
+
+	public updatePosition(pos: { top: number, left: number, right: number, bottom: number }) {
+		// this makes sure the modal doesn't go out of the window or draws out of screen bounds
+		// TODO: add support for rtl windows: pseudo:if(window.rtl)
+		if (pos.bottom + this.pickerContainer.getBoundingClientRect().height > activeWindow.innerHeight) {
+			this.pickerContainer.style.top = (pos.top - this.pickerContainer.getBoundingClientRect().height) + 'px';
+		} else this.pickerContainer.style.top = pos.bottom + 'px';
+		if (pos.left + this.pickerContainer.getBoundingClientRect().width > activeWindow.innerWidth) {
+			this.pickerContainer.style.left = (pos.left - this.pickerContainer.getBoundingClientRect().width) + 'px';
+		} else this.pickerContainer.style.left = pos.left + 'px';
+
+
 	}
 
 	public focus() {
@@ -217,18 +258,18 @@ class Datepicker {
 	) {
 		this.onSubmit = onSubmit;
 
-		const pickerContainer = activeDocument.body.createEl('div');
-		pickerContainer.className = 'datepicker-widget';
-		pickerContainer.id = 'datepicker-container';
-		pickerContainer.empty();
-		const pickerInput = pickerContainer.createEl('input');
-		if (datetime.length <= 10) pickerInput.type = 'date';
-		else pickerInput.type = 'datetime-local';
-		pickerInput.id = 'datepicker-input';
-		pickerInput.value = datetime;
+		this.pickerContainer = activeDocument.body.createEl('span');
+		this.pickerContainer.className = 'datepicker-widget';
+		this.pickerContainer.id = 'datepicker-container';
+		this.pickerContainer.empty();
+		this.pickerInput = this.pickerContainer.createEl('input');
+		if (datetime.length <= 10) this.pickerInput.type = 'date';
+		else this.pickerInput.type = 'datetime-local';
+		this.pickerInput.id = 'datepicker-input';
+		this.pickerInput.value = datetime;
 
 		const controller = new AbortController();
-		pickerContainer.parentElement?.addEventListener('keydown', keypressHandler, { signal: controller.signal, capture: true });
+		this.pickerContainer.parentElement?.addEventListener('keydown', keypressHandler, { signal: controller.signal, capture: true });
 		function keypressHandler(event: KeyboardEvent) {
 			if (event.key === 'ArrowDown') {
 				event.preventDefault();
@@ -241,9 +282,9 @@ class Datepicker {
 			}
 		}
 
-		pickerInput.addEventListener('keydown', (event) => {
+		this.pickerInput.addEventListener('keydown', (event) => {
 			if (event.key === 'Enter') {
-				this.onSubmit(pickerInput.value);
+				this.onSubmit(this.pickerInput.value);
 				this.closeAll();
 			}
 			if (event.key === 'Escape') {
@@ -251,20 +292,12 @@ class Datepicker {
 			}
 		});
 
-		// this makes sure the modal doesn't go out of the window or draws out of screen bounds
-		// TODO: add support for rtl windows: pseudo:if(window.rtl)
-		if (pos.bottom + pickerContainer.getBoundingClientRect().height > activeWindow.innerHeight) {
-			pickerContainer.style.top = (pos.top - pickerContainer.getBoundingClientRect().height) + 'px';
-		} else pickerContainer.style.top = pos.bottom + 'px';
-		if (pos.left + pickerContainer.getBoundingClientRect().width > activeWindow.innerWidth) {
-			pickerContainer.style.left = (pos.left - pickerContainer.getBoundingClientRect().width) + 'px';
-		} else pickerContainer.style.left = pos.left + 'px';
-
-		activeDocument.body.appendChild(pickerContainer);
+		this.updatePosition(pos);
+		activeDocument.body.appendChild(this.pickerContainer);
 
 		if (Platform.isMobile) {
-			pickerInput.focus();
-		} else if (DatepickerPlugin.settings.autofocus) pickerInput.focus();
+			this.pickerInput.focus();
+		} else if (DatepickerPlugin.settings.autofocus) this.pickerInput.focus();
 
 		// delay is necessary because showing immediately doesn't show the calendar
 		// in the correct position, maybe it shows the calendar before the dom is updated
@@ -272,6 +305,7 @@ class Datepicker {
 		// 	if (DatepickerPlugin.settings.immediatelyShowCalendar) pickerInput.showPicker();
 		// }, 10)
 
+		this.isOpen = true;
 	}
 
 }

@@ -1,5 +1,16 @@
 .datepicker-widget {
+    display: flex;
+    flex-direction: column;    
+    justify-content: center;    
+    align-items: center;
+
+    /* required for the Datepicker plugin to function correctly */
     position: fixed;
+    
     min-width: 0px;
     min-height: 0px;
+    padding: 5px;
+    background-color: white;
+    border-radius: 10px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
