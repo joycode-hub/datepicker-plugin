@@ -148,11 +148,13 @@ export const datepickerCMPlugin = ViewPlugin.fromClass(DatepickerCMPlugin);
 interface DatepickerPluginSettings {
 	immediatelyShowCalendar: boolean;
 	autofocus: boolean;
+	focusOnArrowDown: boolean;
 }
 
 const DEFAULT_SETTINGS: DatepickerPluginSettings = {
 	immediatelyShowCalendar: false,
-	autofocus: false
+	autofocus: false,
+	focusOnArrowDown: false,
 }
 
 export default class DatepickerPlugin extends Plugin {
@@ -281,9 +283,11 @@ class Datepicker {
 		this.pickerContainer.parentElement?.addEventListener('keydown', keypressHandler, { signal: controller.signal, capture: true });
 		function keypressHandler(event: KeyboardEvent) {
 			if (event.key === 'ArrowDown') {
-				event.preventDefault();
-				this.doc.getElementById('datepicker-input')?.focus();
-				controller.abort();
+				if (DatepickerPlugin.settings.focusOnArrowDown) {
+					event.preventDefault();
+					this.doc.getElementById('datepicker-input')?.focus();
+					controller.abort();
+				}
 			}
 			if (event.key === 'Escape') {
 				this.doc.getElementById('datepicker-container')?.remove();
@@ -340,11 +344,11 @@ class DatepickerSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
-		const { containerEl } = this;
+		const { containerEl: settingsContainerElement } = this;
 
-		containerEl.empty();
+		settingsContainerElement.empty();
 
-		new Setting(containerEl)
+		new Setting(settingsContainerElement)
 			.setName('Immediately show calendar')
 			.setDesc('Immediately show the calendar when the datepicker appears')
 			.addToggle((toggle) => toggle
@@ -354,7 +358,7 @@ class DatepickerSettingTab extends PluginSettingTab {
 					await this.plugin.saveSettings();
 				}));
 
-		new Setting(containerEl)
+		new Setting(settingsContainerElement)
 			.setName('Autofocus')
 			.setDesc('Automatically focus the datepicker whenever the datepicker opens')
 			.addToggle((toggle) => toggle
@@ -363,5 +367,16 @@ class DatepickerSettingTab extends PluginSettingTab {
 					DatepickerPlugin.settings.autofocus = value;
 					await this.plugin.saveSettings();
 				}));
+
+		new Setting(settingsContainerElement)
+			.setName('Focus on pressing down arrow')
+			.setDesc('Focuses the datepicker when the down arrow is pressed')
+			.addToggle((toggle) => toggle
+				.setValue(DatepickerPlugin.settings.focusOnArrowDown)
+				.onChange(async (value) => {
+					DatepickerPlugin.settings.focusOnArrowDown = value;
+					await this.plugin.saveSettings();
+				}));
+
 	}
 }
