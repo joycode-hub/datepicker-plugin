@@ -37,9 +37,18 @@ class DatepickerCMPlugin implements PluginValue {
 	private endIndex: number;
 
 	update(update: ViewUpdate) {
-		if (!update.selectionSet) return;
-		const datepicker = new Datepicker();
+		/*
+			CM fires two update events for selection change,
+			I use the below code section to ignore the second one
+			otherwise the datepicker flashes as it closes and reopens
+		*/
+		if (update.docChanged === false &&
+			update.state.selection.main.from === update.startState.selection.main.from &&
+			update.state.selection.main.to === update.startState.selection.main.to
+		) return;
+		//
 
+		const datepicker = new Datepicker();
 		const { view } = update;
 		const columnNumber = view.state.selection.ranges[0].head - view.state.doc.lineAt(view.state.selection.main.head).from;
 		const cursorPosition = view.state.selection.main.head;
@@ -295,17 +304,29 @@ class Datepicker {
 		this.updatePosition(pos);
 		activeDocument.body.appendChild(this.pickerContainer);
 
+		// On mobile, the calendar doesn't show up the first time the input is touched,		
+		// unless the element is focused, and focusing the element causes unintended closing
+		// of keyboard, so I implement event listeners and prevent default behavior.
 		if (Platform.isMobile) {
-			this.pickerInput.focus();
-		} else if (DatepickerPlugin.settings.autofocus) this.pickerInput.focus();
-		
+			this.pickerInput.addEventListener('touchstart', (e) => {
+				e.preventDefault();
+			})
+			this.pickerInput.addEventListener('touchend', (e) => {
+				e.preventDefault();
+				(this.pickerInput as any).showPicker();
+			});
+		}
+
+		if (DatepickerPlugin.settings.autofocus) this.pickerInput.focus();
+
 		// delay is necessary because showing immediately doesn't show the calendar
 		// in the correct position, maybe it shows the calendar before the dom is updated
 		setTimeout(() => {
-			if (DatepickerPlugin.settings.immediatelyShowCalendar) this.pickerInput.showPicker();
-		}, 10)		
+			if (DatepickerPlugin.settings.immediatelyShowCalendar)
+				(this.pickerInput as any).showPicker();
+		}, 20)
 
-		this.isOpen = true; 
+		this.isOpen = true;
 	}
 
 }
