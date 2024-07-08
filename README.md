@@ -3,7 +3,7 @@ The date picker automatically appears whenever the editor cursor is placed in a 
 
 ![datepicker-demo](./datepicker-demo.gif)
 
-You can also perform commands to show Datepicker to insert a new date or date and time.
+You can also perform commands to insert a new date or date and time.
 
 ![datepicker-insert-demo](./datepicker-insert-demo.gif)
 
