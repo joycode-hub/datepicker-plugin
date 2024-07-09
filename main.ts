@@ -6,6 +6,17 @@ import {
 	ViewPlugin,
 } from "@codemirror/view";
 
+interface DateMatch {
+	from: number;
+	to: number;
+	value: string;
+	format: DateFormat;
+}
+interface DateFormat {
+	regex: RegExp;
+	formatToUser: string;
+	formatToPicker: string;
+}
 
 class DatepickerCMPlugin implements PluginValue {
 
@@ -19,12 +30,61 @@ class DatepickerCMPlugin implements PluginValue {
 				this.previousDocumentTop = documentTop;
 				return;
 			}
-			console
 			datepickerContainer.style.top =
 				`${parseFloat(datepickerContainer.style.top) + documentTop - this.previousDocumentTop}px`;
 			this.previousDocumentTop = documentTop;
-
 		} else this.previousDocumentTop = undefined;
+	}
+
+	private getAllDates(view: EditorView): DateMatch[] {
+		const textView = view.state.doc.toString();
+		const formats: DateFormat[] = [
+			{
+				regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}[ T]\d{1,2}:\d{1,2}( )?([apm]{2})/ig,
+				formatToUser: "YYYY-MM-DD hh:mm A",
+				formatToPicker: "YYYY-MM-DDTHH:mm"
+			},
+			{
+				regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}[ T]\d{1,2}:\d{1,2}/g,
+				formatToUser: "YYYY-MM-DD HH:mm",
+				formatToPicker: "YYYY-MM-DDTHH:mm"
+			},
+			{
+				regex: /\d{1,2}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{4} \d{1,2}:\d{1,2}( )?([apm]{2})/ig,
+				formatToUser: "DD-MM-YYYY hh:mm A",
+				formatToPicker: "YYYY-MM-DDTHH:mm"
+			},
+			{
+				regex: /\d{1,2}[-\/\\.]{1}\d{4}[ T]\d{1,2}:\d{1,2}/g,
+				formatToUser: "DD-MM-YYYY HH:mm",
+				formatToPicker: "YYYY-MM-DDTHH:mm"
+			},
+			{
+				regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}/g,
+				formatToUser: "YYYY-MM-DD",
+				formatToPicker: "YYYY-MM-DD",
+
+			},
+			{
+				regex: /\d{1,2}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{4}/g,
+				formatToUser: "DD-MM-YYYY",
+				formatToPicker: "YYYY-MM-DD"
+
+			}
+		]
+		let matchingDate: RegExpExecArray | null;
+		let dateMatches: DateMatch[] = [];
+
+		for (const format of formats) {
+			while ((matchingDate = format.regex.exec(textView ?? "")) !== null) {
+
+				if (dateMatches.some((match) => match.from === matchingDate?.index)) {
+					continue;
+				}
+				dateMatches.push({ from: matchingDate.index, to: matchingDate.index + matchingDate[0].length, value: matchingDate[0], format: format });
+			}
+		}
+		return dateMatches;
 	}
 
 	constructor(view: EditorView) {
@@ -33,77 +93,32 @@ class DatepickerCMPlugin implements PluginValue {
 	}
 
 	// start and end index of the matching datetime on the current line
-	private startIndex: number;
-	private endIndex: number;
+	private datepicker: Datepicker | undefined;
+	private previousDateMatch: DateMatch;
 
 	update(update: ViewUpdate) {
+		const dates = this.getAllDates(update.view);
 		/*
-			CM fires two update events for selection change,
-			I use the below code section to ignore the second one
-			otherwise the datepicker flashes as it closes and reopens
-		*/
+		CM fires two update events for selection change,
+		I use the below code section to ignore the second one
+		otherwise the datepicker flashes as it closes and reopens
+	*/
 		if (update.docChanged === false &&
 			update.state.selection.main.from === update.startState.selection.main.from &&
 			update.state.selection.main.to === update.startState.selection.main.to
 		) return;
-		//
 
-		const datepicker = new Datepicker();
 		const { view } = update;
-		const columnNumber = view.state.selection.ranges[0].head - view.state.doc.lineAt(view.state.selection.main.head).from;
 		const cursorPosition = view.state.selection.main.head;
-		const line = view.state.doc.lineAt(cursorPosition);
 
-		/*determine if text around cursor position is a date/time,
-		*/
 
-		let rangeAroundCursor = 19;
-		function getTextAroundCursor(): string {
-			return line.text.substring(columnNumber - rangeAroundCursor, columnNumber + rangeAroundCursor - 1) ?? "";
-		}
-
-		let regex = /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}[ T]\d{1,2}:\d{1,2}( )?([apm]{2})/i;
-		let formatToUser = "YYYY-MM-DD hh:mm A";
-		let formatToPicker = "YYYY-MM-DDTHH:mm";
-		let match = getTextAroundCursor().match(regex)?.[0];
-		if (!match) {
-			rangeAroundCursor = 16;
-			regex = /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}[ T]\d{1,2}:\d{1,2}/;
-			formatToUser = "YYYY-MM-DD HH:mm";
-			match = getTextAroundCursor().match(regex)?.[0];
-		}
-		if (!match) {
-			rangeAroundCursor = 19;
-			regex = /\d{1,2}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{4} \d{1,2}:\d{1,2}( )?([apm]{2})/i;
-			formatToUser = "DD-MM-YYYY hh:mm A";
-			match = getTextAroundCursor().match(regex)?.[0];
-		}
-		if (!match) {
-			rangeAroundCursor = 16;
-			regex = /\d{1,2}[-\/\\.]{1}\d{4}[ T]\d{1,2}:\d{1,2}/;
-			formatToUser = "DD-MM-YYYY HH:mm";
-			match = getTextAroundCursor().match(regex)?.[0];
-		}
-		if (!match) {
-			rangeAroundCursor = 10;
-			regex = /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}/;
-			formatToUser = "YYYY-MM-DD";
-			formatToPicker = "YYYY-MM-DD";
-			match = getTextAroundCursor().match(regex)?.[0];
-		}
-		if (!match) {
-			rangeAroundCursor = 10;
-			regex = /\d{1,2}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{4}/;
-			formatToUser = "DD-MM-YYYY";
-			formatToPicker = "YYYY-MM-DD";
-			match = getTextAroundCursor().match(regex)?.[0];
-		}
+		const match = dates.find(date => date.from <= cursorPosition && date.to >= cursorPosition);
 		if (match) {
-			this.startIndex = line.text.indexOf(match);
-			this.endIndex = this.startIndex + match.length;
+			if(this.previousDateMatch !== undefined)
+			if(this.previousDateMatch.from === match.from && Datepicker.escPressed) return;
+			this.previousDateMatch = match;
 
-			//
-			const dateToPicker = moment(match, [
+			const dateToPicker = moment(match.value, [
 				"YYYY-MM-DD hh:mm A"
 				, "YYYY-MM-DDThh:mm"
 				, "YYYY-MM-DD hh:mma"
@@ -111,7 +126,7 @@ class DatepickerCMPlugin implements PluginValue {
 				, "DD-MM-YYYY HH:mm"
 				, "DD-MM-YYYY hh:mm A"
 				, "DD-MM-YYYY hh:mma"
-			], false).format(formatToPicker);
+			], false).format(match.format.formatToPicker);
 
 			view.requestMeasure({
 				read: state => {
@@ -120,27 +135,48 @@ class DatepickerCMPlugin implements PluginValue {
 				},
 				write: pos => {
 					if (!pos) return;
-					datepicker.open(pos, dateToPicker
+					// if (this.datepicker === undefined)
+					this.datepicker = new Datepicker();
+					this.datepicker.open(pos, dateToPicker
 						, (result) => {
 							const resultFromPicker = moment(result);
 							if (!resultFromPicker.isValid()) return;
-							const dateFromPicker = resultFromPicker.format(formatToUser);
-							if (dateFromPicker === match) return;
+							const dateFromPicker = resultFromPicker.format(match.format.formatToUser);
+							if (dateFromPicker === match.value) return;
 							view.dispatch({
 								changes: {
-									from: line.from + this.startIndex,
-									to: line.from + this.endIndex,
+									from: match.from,
+									to: match.to,
 									insert: dateFromPicker
 								}
 							})
 						});
 				}
 			});
+
+		} else {
+			setTimeout(() => {
+				if (this.datepicker === undefined) return;
+				const dateValue = moment(this.datepicker.pickerValue);
+				if (dateValue.isValid() && Datepicker.escPressed === false) {
+					view.dispatch({
+						changes: {
+							from: this.previousDateMatch.from,
+							to: this.previousDateMatch.to,
+							insert: dateValue.format(this.previousDateMatch.format.formatToUser)
+						}
+					});
+				}
+			}, 10);
+			Datepicker.closeAll();
+			this.datepicker = undefined;
+			this.previousDateMatch.from = -1;
 		}
 	}
 
+
 	destroy() {
-		// ...
+		this.view.scrollDOM.removeEventListener("scroll", this.datepickerScrollPositionHandler);
 	}
 }
 export const datepickerCMPlugin = ViewPlugin.fromClass(DatepickerCMPlugin);
@@ -183,6 +219,7 @@ export default class DatepickerPlugin extends Plugin {
 					{ top: pos.top, left: pos.left, right: pos.right, bottom: pos.bottom },
 					"", (result) => {
 						editor.replaceSelection(moment(result).format("YYYY-MM-DD"));
+						Datepicker.closeAll();
 					}
 				)
 				datepicker.focus();
@@ -202,7 +239,9 @@ export default class DatepickerPlugin extends Plugin {
 				datepicker.open(
 					{ top: pos.top, left: pos.left, right: pos.right, bottom: pos.bottom },
 					"DATEANDTIME", (result) => {
+						// TODO: format time according to picker local format
 						editor.replaceSelection(moment(result).format("YYYY-MM-DD hh:mm A"));
+						Datepicker.closeAll();
 					}
 				)
 				datepicker.focus();
@@ -210,6 +249,12 @@ export default class DatepickerPlugin extends Plugin {
 		});
 
 		this.addSettingTab(new DatepickerSettingTab(this.app, this));
+		this.registerEvent(
+			this.app.workspace.on("active-leaf-change", () => {
+				Datepicker.closeAll();
+			}
+			)
+		)
 	}
 
 	onunload() {
@@ -231,9 +276,12 @@ class Datepicker {
 	private isOpen = false;
 	private pickerContainer: HTMLSpanElement;
 	private pickerInput: HTMLInputElement;
+	private viewContent: HTMLElement;
+	public pickerValue: string;
+	public static escPressed = false;
 
 	constructor() {
-		this.closeAll();
+		Datepicker.closeAll();
 	}
 
 	public isOpened(): boolean {
@@ -241,23 +289,24 @@ class Datepicker {
 	}
 
 	public updatePosition(pos: { top: number, left: number, right: number, bottom: number }) {
-		// this makes sure the modal doesn't go out of the window or draws out of screen bounds
 		// TODO: add support for rtl windows: pseudo:if(window.rtl)
-		if (pos.bottom + this.pickerContainer.getBoundingClientRect().height > activeWindow.innerHeight) {
+		if (this.viewContent !== undefined) {
+			pos.left = pos.left - this.viewContent.getBoundingClientRect().left;
+			pos.bottom = pos.bottom - this.viewContent.getBoundingClientRect().top;
+		}
+		if (pos.bottom + this.pickerContainer.getBoundingClientRect().height > this.viewContent.innerHeight) {
 			this.pickerContainer.style.top = (pos.top - this.pickerContainer.getBoundingClientRect().height) + 'px';
 		} else this.pickerContainer.style.top = pos.bottom + 'px';
-		if (pos.left + this.pickerContainer.getBoundingClientRect().width > activeWindow.innerWidth) {
+		if (pos.left + this.pickerContainer.getBoundingClientRect().width > this.viewContent.innerWidth) {
 			this.pickerContainer.style.left = (pos.left - this.pickerContainer.getBoundingClientRect().width) + 'px';
 		} else this.pickerContainer.style.left = pos.left + 'px';
-
-
 	}
 
 	public focus() {
 		activeDocument.getElementById('datepicker-input')?.focus();
 	}
 
-	public closeAll() {
+	public static closeAll() {
 		let datepickers = activeDocument.getElementsByClassName("datepicker-widget");
 		for (var i = 0; i < datepickers.length; i++) {
 			datepickers[i].remove();
@@ -268,11 +317,14 @@ class Datepicker {
 		datetime: string, onSubmit: (result: string) => void
 	) {
 		this.onSubmit = onSubmit;
+		this.pickerValue = datetime;
+		this.isOpen = true;
+		Datepicker.escPressed = false;
 
-		this.pickerContainer = activeDocument.body.createEl('span');
+		this.viewContent = activeDocument.querySelector('body > div.app-container > div.horizontal-main-container > div > div.workspace-split.mod-vertical.mod-root > div > div.workspace-tab-container > div.workspace-leaf.mod-active > div > div.view-content > div.markdown-source-view.cm-s-obsidian.mod-cm6.node-insert-event.is-readable-line-width.is-live-preview.is-folding.show-properties > div') as HTMLElement;
+		this.pickerContainer = this.viewContent.createEl('span');
 		this.pickerContainer.className = 'datepicker-widget';
 		this.pickerContainer.id = 'datepicker-container';
-		this.pickerContainer.empty();
 		this.pickerInput = this.pickerContainer.createEl('input');
 		if (datetime.length <= 10) this.pickerInput.type = 'date';
 		else this.pickerInput.type = 'datetime-local';
@@ -281,6 +333,7 @@ class Datepicker {
 
 		const controller = new AbortController();
 		this.pickerContainer.parentElement?.addEventListener('keydown', keypressHandler, { signal: controller.signal, capture: true });
+
 		function keypressHandler(event: KeyboardEvent) {
 			if (event.key === 'ArrowDown') {
 				if (DatepickerPlugin.settings.focusOnArrowDown) {
@@ -290,7 +343,8 @@ class Datepicker {
 				}
 			}
 			if (event.key === 'Escape') {
-				this.doc.getElementById('datepicker-container')?.remove();
+				Datepicker.escPressed = true;
+				Datepicker.closeAll();
 				controller.abort();
 			}
 		}
@@ -298,15 +352,21 @@ class Datepicker {
 		this.pickerInput.addEventListener('keydown', (event) => {
 			if (event.key === 'Enter') {
 				this.onSubmit(this.pickerInput.value);
-				this.closeAll();
+				Datepicker.closeAll();
 			}
+			// Important: this will work only when the datepicker is in focus
 			if (event.key === 'Escape') {
-				this.closeAll();
+				Datepicker.escPressed = true;
+				this.isOpen = false;
+				Datepicker.closeAll();
 			}
 		});
 
+		this.pickerInput.addEventListener('change', () => {
+			this.pickerValue = this.pickerInput.value;
+		});
+
 		this.updatePosition(pos);
-		activeDocument.body.appendChild(this.pickerContainer);
 
 		// On mobile, the calendar doesn't show up the first time the input is touched,		
 		// unless the element is focused, and focusing the element causes unintended closing
@@ -330,7 +390,6 @@ class Datepicker {
 				(this.pickerInput as any).showPicker();
 		}, 20)
 
-		this.isOpen = true;
 	}
 
 }
