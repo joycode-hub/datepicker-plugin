@@ -168,7 +168,11 @@ class DatepickerCMPlugin implements PluginValue {
 		});
 
 	}
+	// flag to prevent closing the datepicker in editor update when it is opened by button
+	public pickerOpenedByButton = false;
+	public updateFinished = false;
 	update(update: ViewUpdate) {
+		this.updateFinished = false;
 		/*
 		CM fires two update events for selection change,
 		I use the below code section to ignore the second one
@@ -190,48 +194,25 @@ class DatepickerCMPlugin implements PluginValue {
 		const { view } = update;
 		const cursorPosition = view.state.selection.main.head;
 
-		// function applyDate(date: string, dateMatch: DateMatch) {
-		// 	const dateValue = moment(date);
-		// 	if (dateValue.isValid() && Datepicker.escPressed === false) {
-		// 		setTimeout(() => {
-		// 			view.dispatch({
-		// 				changes: {
-		// 					from: dateMatch.from,
-		// 					to: dateMatch.to,
-		// 					insert: dateValue.format(dateMatch.format.formatToUser)
-		// 				}
-		// 			});
-		// 		});
-		// 	}
-
-		// }
-
 		const match = this.dates.find(date => date.from <= cursorPosition && date.to >= cursorPosition);
 		if (match) {
 			if (this.previousDateMatch !== undefined && this.datepicker !== undefined) {
-				// apply value before closing on switching to another cursor position
-				// if (this.datepicker !== undefined && !Datepicker.escPressed)
-				// 	applyDate(this.datepicker.pickerValue, this.previousDateMatch);
+				// prevent reopening date picker on the same date field when closed by button
 				if (this.previousDateMatch.from === match.from && this.datepicker.closedByButton) return;
 			}
 			this.previousDateMatch = match;
+			this.datepicker?.closeAll();
 			if (DatepickerPlugin.settings.showAutomatically) {
-				if (this.datepicker !== undefined) this.datepicker.closeAll();
 				this.openDatepicker(view, match);
 			}
 
 		} else {
-			// apply value before closing on switching to another cursor position
-			// if (this.datepicker !== undefined && this.previousDateMatch !== undefined) {
-			// 	applyDate(this.datepicker.pickerValue, this.previousDateMatch);
-			// }
 			if (this.datepicker !== undefined) {
 				this.datepicker.closeAll();
 				this.datepicker = undefined;
 			}
-			// if (this.previousDateMatch !== undefined)
-			// 	this.previousDateMatch.from = -1;
 		}
+		this.updateFinished = true;
 	}
 
 
@@ -269,15 +250,15 @@ function datepickerButtonEventHandler(e: Event, view: EditorView) {
 			dpCMPlugin!.datepicker.closeAll();
 			dpCMPlugin!.datepicker.closedByButton = true; // to prevent from opening again on selecting same date field
 		} else {
-			if (dpCMPlugin?.datepicker !== undefined) {
-				dpCMPlugin.datepicker.closeAll();
-				dpCMPlugin!.datepicker.openedByButton = true;
-			}
-			dpCMPlugin?.openDatepicker(view,
-				dpCMPlugin.dates.find(
-					date => date.from <= cursorPositionAtButton && date.to >= cursorPositionAtButton)!
-			);
-
+			dpCMPlugin!.datepicker?.closeAll();
+			dpCMPlugin!.pickerOpenedByButton = true;
+			setTimeout(() => {// delay to wait for editor update to finish, otherwise
+				// datepicker flashes and reopens in previous/wrong position
+				dpCMPlugin?.openDatepicker(view,
+					dpCMPlugin.dates.find(
+						date => date.from <= cursorPositionAtButton && date.to >= cursorPositionAtButton)!
+					,);
+			}, 100);
 		}
 	}
 }
@@ -432,8 +413,8 @@ class Datepicker {
 					setTimeout(() => this.onSubmit(this.pickerValue), 10);
 
 		let datepickers = activeDocument.getElementsByClassName("datepicker-widget");
-			for (var i = 0; i < datepickers.length; i++)
-				datepickers[i].remove();
+		for (var i = 0; i < datepickers.length; i++)
+			datepickers[i].remove();
 	}
 
 	public open(pos: { top: number, left: number, right: number, bottom: number }, cursorPosition: number,
@@ -475,15 +456,11 @@ class Datepicker {
 
 		this.pickerInput.addEventListener('keydown', (event) => {
 			if (event.key === 'Enter') {
-				// this.pickerContainer.blur();
-				// event.preventDefault();
-				// setTimeout(() => {
-					this.onSubmit(this.pickerInput.value);
-				// },2)
+				this.onSubmit(this.pickerInput.value);
 				// delay to allow editor to update on submit otherwise picker will immediately reopen
 				setTimeout(() => {
 					Datepicker.closeAll();
-				},5)
+				}, 5)
 
 			}
 			// Important: this will work only when the datepicker is in focus

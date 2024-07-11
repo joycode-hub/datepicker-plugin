@@ -4,7 +4,7 @@
 - Adds a calendar button to date values in your notes that can be selected to open a datepicker.
 - Adds commands to insert a new date or date and time.
 
-![datepicker-screenshot](./datepicker_1.png)
+![datepicker-screenshot](./obsidian_datepicker_screenshot.png)
 
 For issues or bugs with the plugin, feature requests or suggestions, please open an issue.
 
