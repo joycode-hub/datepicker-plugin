@@ -1,4 +1,4 @@
-.datepicker-widget{
+.datepicker-container{
     /* required for the Datepicker plugin to function correctly */
     position: absolute;
     min-width: 0px;
