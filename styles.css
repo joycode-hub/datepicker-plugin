@@ -3,6 +3,7 @@
     position: absolute;
     min-width: 0px;
     min-height: 0px;
+    display: flex;
 
     padding: 5px;
     background-color: var(--interactive-accent-hover);
@@ -13,4 +14,8 @@
     --icon-size: 14px;
     margin-left: 4px;
     margin-right: 6px;
+}
+.datepicker-widget-button{
+    --icon-size: 12px;
+    margin-left: 4px;
 }

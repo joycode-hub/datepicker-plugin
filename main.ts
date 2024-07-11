@@ -153,7 +153,9 @@ class DatepickerCMPlugin implements PluginValue {
 				this.datepicker.open(pos, match.from, dateToPicker
 					, (result) => {
 						const resultFromPicker = moment(result);
-						if (!resultFromPicker.isValid()) return;
+						if (!resultFromPicker.isValid()) {
+							return;
+						}
 						const dateFromPicker = resultFromPicker.format(match.format.formatToUser);
 						if (dateFromPicker === match.value) return;
 						view.dispatch({
@@ -304,8 +306,10 @@ export default class DatepickerPlugin extends Plugin {
 				datepicker.open(
 					{ top: pos.top, left: pos.left, right: pos.right, bottom: pos.bottom }, cursorPosition,
 					"", (result) => {
-						editor.replaceSelection(moment(result).format("YYYY-MM-DD"));
-						Datepicker.closeAll();
+						if (moment(result).isValid() === true) {
+							editor.replaceSelection(moment(result).format("YYYY-MM-DD"));
+							Datepicker.closeAll();
+						} else new Notice("Please enter a valid date");
 					}
 				)
 				datepicker.focus();
@@ -326,10 +330,11 @@ export default class DatepickerPlugin extends Plugin {
 					{ top: pos.top, left: pos.left, right: pos.right, bottom: pos.bottom }, cursorPosition,
 					"DATEANDTIME", (result) => {
 						// TODO: format time according to picker local format
-						if (moment(result).isValid() === true)
+						if (moment(result).isValid() === true) {
 							editor.replaceSelection(moment(result).format("YYYY-MM-DD hh:mm A"));
-						else new Notice("Invalid date/time, please fill all date and time fields");
-						Datepicker.closeAll();
+							Datepicker.closeAll();
+						}
+						else new Notice("Please enter a valid date and time");
 					}
 				)
 				datepicker.focus();
@@ -435,6 +440,33 @@ class Datepicker {
 		else this.pickerInput.type = 'datetime-local';
 		this.pickerInput.id = 'datepicker-input';
 		this.pickerInput.value = datetime;
+		const acceptButton = this.pickerContainer.createEl('button');
+		acceptButton.className = 'datepicker-widget-button';
+		setIcon(acceptButton, 'check');
+		acceptButton.addEventListener('click', () => acceptButtonEventHandler.call(this));
+		acceptButton.addEventListener('touchend', () => acceptButtonEventHandler.call(this));
+		function acceptButtonEventHandler(event: Event) {
+			if (this.pickerInput.value === '') {
+				new Notice('Please enter a valid date');
+			} else {
+				this.onSubmit(this.pickerInput.value);
+				// delay to allow editor to update on submit otherwise picker will immediately reopen
+				setTimeout(() => {
+					Datepicker.closeAll();
+				}, 5);
+			}
+		}
+
+		const cancelButton = this.pickerContainer.createEl('button');
+		cancelButton.className = 'datepicker-widget-button';
+		setIcon(cancelButton, 'x');
+		cancelButton.addEventListener('click', cancelButtonEventHandler);
+		cancelButton.addEventListener('touchend', cancelButtonEventHandler);
+		function cancelButtonEventHandler() {
+			this.escPressed = true;
+			Datepicker.closeAll();
+		}
+
 
 		const controller = new AbortController();
 		this.pickerContainer.parentElement?.addEventListener('keydown', keypressHandler, { signal: controller.signal, capture: true });
@@ -456,11 +488,16 @@ class Datepicker {
 
 		this.pickerInput.addEventListener('keydown', (event) => {
 			if (event.key === 'Enter') {
-				this.onSubmit(this.pickerInput.value);
-				// delay to allow editor to update on submit otherwise picker will immediately reopen
-				setTimeout(() => {
-					Datepicker.closeAll();
-				}, 5)
+				if (this.pickerInput.value === '') {
+					new Notice('Please enter a valid date');
+				} else {
+
+					this.onSubmit(this.pickerInput.value);
+					// delay to allow editor to update on submit otherwise picker will immediately reopen
+					setTimeout(() => {
+						Datepicker.closeAll();
+					}, 5);
+				}
 
 			}
 			// Important: this will work only when the datepicker is in focus
