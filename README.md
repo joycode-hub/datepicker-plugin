@@ -1,7 +1,7 @@
 # Use a datepicker to edit and insert date and time anywhere in your markdown notes
 
 - Can automatically show whenever a date is selected.
-- Adds a calendar button to date values in your notes that can be selected to open a datepicker.
+- Can add a calendar button to date values in your notes that can be selected to open a datepicker.
 - Adds commands to insert a new date or date and time.
 
 ![datepicker-screenshot](./obsidian_datepicker_screenshot.png)
