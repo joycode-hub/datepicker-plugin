@@ -51,19 +51,24 @@ class DatepickerCMPlugin implements PluginValue {
 
 	private view: EditorView;
 	private previousDocumentTop: number | undefined;
-	datepickerScrollPositionHandler = () => {
-		const datepickerContainer = activeDocument.getElementById('datepicker-container');
-		if (datepickerContainer) {
-			const { documentTop } = this.view;
-			if (this.previousDocumentTop === undefined) {
-				this.previousDocumentTop = documentTop;
-				return;
+
+	datepickerScrollPositionHandler = (view: EditorView) => {
+		if (this.datepicker === undefined) return;
+		console.log(this.datepicker?.cursorPosition);
+		view.requestMeasure({
+			read: state => {
+				let pos = state.coordsAtPos(this.datepicker?.cursorPosition!);
+				return pos;
+			},
+			write: pos => {
+				this.datepicker!.updatePosition({
+					top: pos!.top,
+					left: pos!.left,
+					bottom: pos!.bottom
+				});
 			}
-			datepickerContainer.style.top =
-				`${parseFloat(datepickerContainer.style.top) + documentTop - this.previousDocumentTop}px`;
-			this.previousDocumentTop = documentTop;
-		} else this.previousDocumentTop = undefined;
-	}
+		});
+	};
 
 	private getAllDates(view: EditorView): DateMatch[] {
 		const textView = view.state.doc.toString();
@@ -118,9 +123,11 @@ class DatepickerCMPlugin implements PluginValue {
 
 	decorations: DecorationSet;
 
+	private scrollEventAbortController: AbortController = new AbortController();
+
 	constructor(view: EditorView) {
 		this.view = view;
-		view.scrollDOM.addEventListener("scroll", this.datepickerScrollPositionHandler);
+		view.scrollDOM.addEventListener("scroll", this.datepickerScrollPositionHandler.bind(this, view), { signal: this.scrollEventAbortController.signal });
 		this.dates = this.getAllDates(view);
 		if (DatepickerPlugin.settings.showButtons)
 			this.decorations = pickerButtons(this.dates);
@@ -164,7 +171,6 @@ class DatepickerCMPlugin implements PluginValue {
 								to: match.to,
 								insert: dateFromPicker
 							},
-							// annotations: Transaction.addToHistory.of(true)
 						});
 						view.dispatch(transaction);
 					});
@@ -190,17 +196,17 @@ class DatepickerCMPlugin implements PluginValue {
 				this.decorations = pickerButtons(this.dates);
 		}
 
-
 		const { view } = update;
+
 		const cursorPosition = view.state.selection.main.head;
 
 		const match = this.dates.find(date => date.from <= cursorPosition && date.to >= cursorPosition);
 		if (match) {
 			if (this.previousDateMatch !== undefined && this.datepicker !== undefined) {
 				// prevent reopening date picker on the same date field when closed by button
-				if (this.previousDateMatch.from === match.from && this.datepicker.closedByButton) return;
-				// prevent reopening date picker on the same date field when esc is pressed
-				if (this.datepicker.escPressed) return;
+				// or when esc was pressed
+				if (this.previousDateMatch.from === match.from
+					&& (this.datepicker.closedByButton || this.datepicker.escPressed)) return;
 			}
 			this.previousDateMatch = match;
 			this.datepicker?.closeAll();
@@ -218,7 +224,8 @@ class DatepickerCMPlugin implements PluginValue {
 
 
 	destroy() {
-		this.view.scrollDOM.removeEventListener("scroll", this.datepickerScrollPositionHandler);
+		Datepicker.closeAll();
+		this.scrollEventAbortController.abort();
 	}
 }
 export const datepickerCMPlugin = ViewPlugin.fromClass(DatepickerCMPlugin, {
@@ -288,6 +295,26 @@ export default class DatepickerPlugin extends Plugin {
 		await this.loadSettings();
 
 		this.registerEditorExtension(datepickerCMPlugin);
+
+		this.addCommand({
+			id: 'edit-date',
+			name: 'Edit date',
+			editorCallback: (editor: Editor) => {
+				// @ts-expect-error, not typed
+				const editorView = editor.cm as EditorView;
+				const cursorPosition = editorView.state.selection.main.to;
+				if (cursorPosition === undefined){
+					new Notice("Please select a date");
+					return;
+				} 
+				const pos = editorView.coordsAtPos(cursorPosition);
+				const plugin = editorView.plugin(datepickerCMPlugin);
+				const match = plugin!.dates.find(date => date.from <= cursorPosition && date.to >= cursorPosition);
+				if (match) {
+					plugin!.openDatepicker(editorView, match);
+				}else new Notice("Please select a date");
+			}
+		})
 
 		this.addCommand({
 			id: 'insert-date',
@@ -380,11 +407,11 @@ class Datepicker {
 	}
 
 
-	public updatePosition(pos: { top: number, left: number, right: number, bottom: number }) {
+	public updatePosition(pos: { top: number, left: number, bottom: number }) {
 		// TODO: add support for rtl windows: pseudo:if(window.rtl)
 		let left = pos.left;
 		let bottom = pos.bottom;
-		// if added to viewContent the adjust the position
+		// if added to viewContent then offset the position
 		if (this.viewContainer !== undefined) {
 			left = pos.left - this.viewContainer.getBoundingClientRect().left;
 			bottom = pos.bottom - this.viewContainer.getBoundingClientRect().top;
@@ -393,7 +420,7 @@ class Datepicker {
 			this.pickerContainer.style.top = (pos.top - this.pickerContainer.getBoundingClientRect().height) + 'px';
 		} else this.pickerContainer.style.top = bottom + 'px';
 		if (left + this.pickerContainer.getBoundingClientRect().width > this.viewContainer.innerWidth) {
-			this.pickerContainer.style.left = (left - this.pickerContainer.getBoundingClientRect().width) + 'px';
+			this.pickerContainer.style.left = (this.viewContainer.getBoundingClientRect().width - this.pickerContainer.getBoundingClientRect().width) + 'px';//(left - this.pickerContainer.getBoundingClientRect().width) + 'px';
 		} else this.pickerContainer.style.left = left + 'px';
 	}
 
@@ -405,7 +432,6 @@ class Datepicker {
 		Datepicker.isOpened = false;
 		let datepickers = activeDocument.getElementsByClassName("datepicker-container");
 		for (var i = 0; i < datepickers.length; i++) {
-			(datepickers[i].getElementsByClassName('datepicker-input')[0] as HTMLInputElement).blur();
 			datepickers[i].remove();
 		}
 	}
@@ -418,7 +444,6 @@ class Datepicker {
 
 		let datepickers = activeDocument.getElementsByClassName("datepicker-container");
 		for (var i = 0; i < datepickers.length; i++) {
-			(datepickers[i].getElementsByClassName('datepicker-input')[0] as HTMLInputElement).blur();
 			datepickers[i].remove();
 		}
 	}
@@ -430,6 +455,7 @@ class Datepicker {
 		this.pickerValue = datetime;
 		this.cursorPosition = cursorPosition;
 		Datepicker.isOpened = true;
+		this.closedByButton = false;
 		this.escPressed = false;
 
 		this.viewContainer = activeDocument.querySelector('body > div.app-container > div.horizontal-main-container > div > div.workspace-split.mod-vertical.mod-root > div > div.workspace-tab-container > div.workspace-leaf.mod-active > div > div.view-content > div.markdown-source-view.cm-s-obsidian.mod-cm6.node-insert-event.is-readable-line-width.is-live-preview.is-folding.show-properties > div') as HTMLElement;

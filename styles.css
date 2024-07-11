@@ -6,7 +6,7 @@
     display: flex;
 
     padding: 5px;
-    background-color: var(--interactive-accent-hover);
+    background-color: var(--interactive-hover);
     border-radius: 10px;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
 }
