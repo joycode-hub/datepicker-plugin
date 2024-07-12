@@ -8,7 +8,6 @@ import {
 	Decoration,
 	DecorationSet
 } from "@codemirror/view";
-import { AnnotationType, Annotation, Transaction } from "@codemirror/state";
 
 interface DateMatch {
 	from: number;
@@ -400,7 +399,6 @@ class Datepicker {
 	public cursorPosition: number;
 	public closedByButton = false;
 	public openedByButton = false;
-	private pickerCalendarOpened = false;
 
 	constructor() {
 		this.closeAll();
@@ -459,7 +457,7 @@ class Datepicker {
 		this.escPressed = false;
 
 
-		this.viewContainer = activeDocument.querySelector('body > div.app-container > div.horizontal-main-container > div > div.workspace-split.mod-vertical.mod-root > div > div.workspace-tab-container > div.workspace-leaf.mod-active > div > div.view-content > div.markdown-source-view.cm-s-obsidian.mod-cm6.node-insert-event.is-readable-line-width.is-live-preview.is-folding.show-properties > div') as HTMLElement;
+		this.viewContainer = activeDocument.querySelector('.cm-scroller') as HTMLElement;
 		this.pickerContainer = this.viewContainer.createEl('span');
 		this.pickerContainer.className = 'datepicker-container';
 		this.pickerContainer.id = 'datepicker-container';
