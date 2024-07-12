@@ -243,7 +243,7 @@ export const datepickerCMPlugin = ViewPlugin.fromClass(DatepickerCMPlugin, {
 		},
 		touchend: (e, view) => {
 			datepickerButtonEventHandler(e, view);
-		}
+		},
 	}
 });
 
@@ -303,16 +303,15 @@ export default class DatepickerPlugin extends Plugin {
 				// @ts-expect-error, not typed
 				const editorView = editor.cm as EditorView;
 				const cursorPosition = editorView.state.selection.main.to;
-				if (cursorPosition === undefined){
+				if (cursorPosition === undefined) {
 					new Notice("Please select a date");
 					return;
-				} 
-				const pos = editorView.coordsAtPos(cursorPosition);
+				}
 				const plugin = editorView.plugin(datepickerCMPlugin);
 				const match = plugin!.dates.find(date => date.from <= cursorPosition && date.to >= cursorPosition);
 				if (match) {
 					plugin!.openDatepicker(editorView, match);
-				}else new Notice("Please select a date");
+				} else new Notice("Please select a date");
 			}
 		})
 
@@ -401,6 +400,7 @@ class Datepicker {
 	public cursorPosition: number;
 	public closedByButton = false;
 	public openedByButton = false;
+	private pickerCalendarOpened = false;
 
 	constructor() {
 		this.closeAll();
@@ -458,6 +458,7 @@ class Datepicker {
 		this.closedByButton = false;
 		this.escPressed = false;
 
+
 		this.viewContainer = activeDocument.querySelector('body > div.app-container > div.horizontal-main-container > div > div.workspace-split.mod-vertical.mod-root > div > div.workspace-tab-container > div.workspace-leaf.mod-active > div > div.view-content > div.markdown-source-view.cm-s-obsidian.mod-cm6.node-insert-event.is-readable-line-width.is-live-preview.is-folding.show-properties > div') as HTMLElement;
 		this.pickerContainer = this.viewContainer.createEl('span');
 		this.pickerContainer.className = 'datepicker-container';
@@ -471,7 +472,9 @@ class Datepicker {
 		const acceptButton = this.pickerContainer.createEl('button');
 		acceptButton.className = 'datepicker-widget-button';
 		setIcon(acceptButton, 'check');
+		const buttonEventAbortController = new AbortController();
 		const acceptButtonEventHandler = (event: Event) => {
+			event.preventDefault();
 			if (this.pickerInput.value === '') {
 				new Notice('Please enter a valid date');
 			} else {
@@ -481,19 +484,23 @@ class Datepicker {
 					Datepicker.closeAll();
 				}, 5);
 			}
+			buttonEventAbortController.abort();
 		}
-		acceptButton.addEventListener('click', () => acceptButtonEventHandler.call(this));
-		acceptButton.addEventListener('touchend', () => acceptButtonEventHandler.call(this));
+		acceptButton.addEventListener('click', acceptButtonEventHandler, { signal: buttonEventAbortController.signal });
+		acceptButton.addEventListener('touchend', acceptButtonEventHandler, { signal: buttonEventAbortController.signal });
 
 		const cancelButton = this.pickerContainer.createEl('button');
 		cancelButton.className = 'datepicker-widget-button';
 		setIcon(cancelButton, 'x');
-		const cancelButtonEventHandler = () => {
+
+		const cancelButtonEventHandler = (event: Event) => {
+			event.preventDefault();
 			this.escPressed = true;
 			Datepicker.closeAll();
+			buttonEventAbortController.abort();
 		}
-		cancelButton.addEventListener('click', cancelButtonEventHandler);
-		cancelButton.addEventListener('touchend', cancelButtonEventHandler);
+		cancelButton.addEventListener('click', cancelButtonEventHandler, { signal: buttonEventAbortController.signal });
+		cancelButton.addEventListener('touchend', cancelButtonEventHandler, { signal: buttonEventAbortController.signal });
 
 
 		const controller = new AbortController();
@@ -528,15 +535,16 @@ class Datepicker {
 				}
 
 			}
-			// Important: this will work only when the datepicker is in focus
+			// this works only when the datepicker is in focus
 			if (event.key === 'Escape') {
 				this.escPressed = true;
 				this.closeAll();
 			}
 		}, { capture: true });
 
-		this.pickerInput.addEventListener('change', () => {
+		this.pickerInput.addEventListener('input', () => {
 			this.pickerValue = this.pickerInput.value;
+
 		});
 
 		this.updatePosition(pos);
@@ -556,13 +564,15 @@ class Datepicker {
 
 		if (DatepickerPlugin.settings.autofocus) this.pickerInput.focus();
 
-		// delay is necessary because showing immediately doesn't show the calendar
-		// in the correct position, maybe it shows the calendar before the dom is updated
-		setTimeout(() => {
-			if (DatepickerPlugin.settings.immediatelyShowCalendar)
+		if (DatepickerPlugin.settings.immediatelyShowCalendar) {
+			this.focus();
+			// delay is necessary because showing immediately doesn't show the calendar
+			// in the correct position, maybe it shows the calendar before the dom is updated
+			setTimeout(() => {
+				if(Datepicker.isOpened)
 				(this.pickerInput as any).showPicker();
-		}, 20)
-
+			}, 20);
+		}
 	}
 
 }
@@ -622,8 +632,8 @@ class DatepickerSettingTab extends PluginSettingTab {
 				}));
 
 		new Setting(settingsContainerElement)
-			.setName('Focus on pressing down arrow')
-			.setDesc('Focuses the datepicker when the down arrow is pressed')
+			.setName('Focus on pressing down arrow key')
+			.setDesc('Focuses the datepicker when the down arrow keyboard key is pressed')
 			.addToggle((toggle) => toggle
 				.setValue(DatepickerPlugin.settings.focusOnArrowDown)
 				.onChange(async (value) => {
