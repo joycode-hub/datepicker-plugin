@@ -195,6 +195,11 @@ class DatepickerCMPlugin implements PluginValue {
 				this.decorations = pickerButtons(this.dates);
 		}
 
+		if(update.state.selection.main.from !== update.state.selection.main.to){
+			Datepicker.closeAll();
+			return;
+		}
+
 		const { view } = update;
 
 		const cursorPosition = view.state.selection.main.head;
@@ -208,7 +213,9 @@ class DatepickerCMPlugin implements PluginValue {
 					if (this.previousDateMatch.from === match.from) {
 						if (this.datepicker.closedByButton || this.datepicker.escPressed) return;
 					} else {
-						Datepicker.calendarImmediatelyShownOnce = false;
+						if (!Datepicker.openedByButton) {
+							Datepicker.calendarImmediatelyShownOnce = false;
+						} else Datepicker.openedByButton = false;
 					}
 				}
 			}
@@ -264,8 +271,10 @@ function datepickerButtonEventHandler(e: Event, view: EditorView) {
 			dpCMPlugin!.datepicker.closedByButton = true; // to prevent from opening again on selecting same date field
 		} else {
 			dpCMPlugin!.datepicker?.closeAll();
-			setTimeout(() => {// delay to wait for editor update to finish, otherwise
+			setTimeout(() => {// delay to wait for editor selection update to finish, otherwise
 				// datepicker flashes and reopens in previous/wrong position
+				Datepicker.openedByButton = true;
+				Datepicker.calendarImmediatelyShownOnce = false;
 				dpCMPlugin?.openDatepicker(view,
 					dpCMPlugin.dates.find(
 						date => date.from <= cursorPositionAtButton && date.to >= cursorPositionAtButton)!
@@ -336,8 +345,16 @@ export default class DatepickerPlugin extends Plugin {
 					{ top: pos.top, left: pos.left, right: pos.right, bottom: pos.bottom }, cursorPosition,
 					"", (result) => {
 						if (moment(result).isValid() === true) {
-							editor.replaceSelection(moment(result).format("YYYY-MM-DD"));
-							Datepicker.closeAll();
+							setTimeout(() => { // delay to wait for editor update to finish
+								editorView.dispatch({
+									changes: {
+										from: cursorPosition,
+										to: cursorPosition,
+										insert: moment(result).format("YYYY-MM-DD")
+									}
+								})
+							}, 100);
+							datepicker.closeAll();
 						} else new Notice("Please enter a valid date");
 					}
 				)
@@ -360,10 +377,17 @@ export default class DatepickerPlugin extends Plugin {
 					"DATEANDTIME", (result) => {
 						// TODO: format time according to picker local format
 						if (moment(result).isValid() === true) {
-							editor.replaceSelection(moment(result).format("YYYY-MM-DD hh:mm A"));
-							Datepicker.closeAll();
-						}
-						else new Notice("Please enter a valid date and time");
+							setTimeout(() => { // delay to wait for editor update to finish
+								editorView.dispatch({
+									changes: {
+										from: cursorPosition,
+										to: cursorPosition,
+										insert: moment(result).format("YYYY-MM-DD hh:mm A")
+									}
+								})
+							}, 100);
+							datepicker.closeAll();
+						} else new Notice("Please enter a valid date and time");
 					}
 				)
 				datepicker.focus();
@@ -404,10 +428,13 @@ class Datepicker {
 	public escPressed = false;
 	public cursorPosition: number;
 	public closedByButton = false;
-	public openedByButton = false;
+	public static openedByButton = false;
 	// Used for preventing the calendar from continuously reopening on every
 	// interaction with the datefield when set to immediatelyShowCalendar
 	public static calendarImmediatelyShownOnce = false;
+	// Used for preventing blur event from inserting date when
+	// inserting from command
+	private enterPressed = false;
 
 	constructor() {
 		this.closeAll();
@@ -531,7 +558,7 @@ class Datepicker {
 				if (this.pickerInput.value === '') {
 					new Notice('Please enter a valid date');
 				} else {
-
+					this.enterPressed = true;
 					this.onSubmit(this.pickerInput.value);
 					// delay to allow editor to update on submit otherwise picker will immediately reopen
 					setTimeout(() => {
@@ -553,7 +580,7 @@ class Datepicker {
 		});
 
 		this.pickerInput.addEventListener('blur', () => {
-			if (!this.escPressed)
+			if (!this.escPressed && !this.enterPressed)
 				if (moment(this.pickerValue).isValid() === true)
 					if (this.onSubmit !== undefined)
 						setTimeout(() => this.onSubmit(this.pickerValue), 100);
@@ -578,14 +605,16 @@ class Datepicker {
 
 		if (DatepickerPlugin.settings.immediatelyShowCalendar) {
 			if (Datepicker.calendarImmediatelyShownOnce) return;
+
 			this.focus();
 			// delay is necessary because showing immediately doesn't show the calendar
 			// in the correct position, maybe it shows the calendar before the dom is updated
 			setTimeout(() => {
 				if (Datepicker.isOpened)
 					(this.pickerInput as any).showPicker();
+				Datepicker.calendarImmediatelyShownOnce = true;
 			}, 150);
-			Datepicker.calendarImmediatelyShownOnce = true;
+
 		}
 	}
 
