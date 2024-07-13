@@ -201,16 +201,22 @@ class DatepickerCMPlugin implements PluginValue {
 
 		const match = this.dates.find(date => date.from <= cursorPosition && date.to >= cursorPosition);
 		if (match) {
-			if (this.previousDateMatch !== undefined && this.datepicker !== undefined) {
-				// prevent reopening date picker on the same date field when closed by button
-				// or when esc was pressed
-				if (this.previousDateMatch.from === match.from
-					&& (this.datepicker.closedByButton || this.datepicker.escPressed)) return;
+			if (this.datepicker !== undefined) {
+				if (this.previousDateMatch !== undefined) {
+					// prevent reopening date picker on the same date field when closed by button
+					// or when esc was pressed
+					if (this.previousDateMatch.from === match.from) {
+						if (this.datepicker.closedByButton || this.datepicker.escPressed) return;
+					} else {
+						Datepicker.calendarImmediatelyShownOnce = false;
+					}
+				}
 			}
 			this.previousDateMatch = match;
 			this.datepicker?.closeAll();
 			if (DatepickerPlugin.settings.showAutomatically) {
 				this.openDatepicker(view, match);
+				// Datepicker.calendarImmediatelyShown = false;
 			}
 
 		} else {
@@ -399,6 +405,9 @@ class Datepicker {
 	public cursorPosition: number;
 	public closedByButton = false;
 	public openedByButton = false;
+	// Used for preventing the calendar from continuously reopening on every
+	// interaction with the datefield when set to immediatelyShowCalendar
+	public static calendarImmediatelyShownOnce = false;
 
 	constructor() {
 		this.closeAll();
@@ -437,10 +446,6 @@ class Datepicker {
 	}
 	public closeAll() {
 		Datepicker.isOpened = false;
-		if (!this.escPressed)
-			if (moment(this.pickerValue).isValid() === true)
-				if (this.onSubmit !== undefined)
-					setTimeout(() => this.onSubmit(this.pickerValue), 100);
 
 		let datepickers = activeDocument.getElementsByClassName("datepicker-container");
 		for (var i = 0; i < datepickers.length; i++) {
@@ -479,12 +484,12 @@ class Datepicker {
 				new Notice('Please enter a valid date');
 			} else {
 				this.onSubmit(this.pickerInput.value);
+				buttonEventAbortController.abort();
 				// delay to allow editor to update on submit otherwise picker will immediately reopen
 				setTimeout(() => {
 					Datepicker.closeAll();
 				}, 100);
 			}
-			buttonEventAbortController.abort();
 		}
 		acceptButton.addEventListener('click', acceptButtonEventHandler, { signal: buttonEventAbortController.signal });
 		acceptButton.addEventListener('touchend', acceptButtonEventHandler, { signal: buttonEventAbortController.signal });
@@ -542,9 +547,16 @@ class Datepicker {
 			}
 		}, { capture: true });
 
-		this.pickerInput.addEventListener('input', () => {
+		this.pickerInput.addEventListener('change', () => {
 			this.pickerValue = this.pickerInput.value;
 
+		});
+
+		this.pickerInput.addEventListener('blur', () => {
+			if (!this.escPressed)
+				if (moment(this.pickerValue).isValid() === true)
+					if (this.onSubmit !== undefined)
+						setTimeout(() => this.onSubmit(this.pickerValue), 100);
 		});
 
 		this.updatePosition(pos);
@@ -565,6 +577,7 @@ class Datepicker {
 		if (DatepickerPlugin.settings.autofocus) this.pickerInput.focus();
 
 		if (DatepickerPlugin.settings.immediatelyShowCalendar) {
+			if (Datepicker.calendarImmediatelyShownOnce) return;
 			this.focus();
 			// delay is necessary because showing immediately doesn't show the calendar
 			// in the correct position, maybe it shows the calendar before the dom is updated
@@ -572,6 +585,7 @@ class Datepicker {
 				if (Datepicker.isOpened)
 					(this.pickerInput as any).showPicker();
 			}, 150);
+			Datepicker.calendarImmediatelyShownOnce = true;
 		}
 	}
 
