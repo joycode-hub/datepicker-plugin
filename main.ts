@@ -8,6 +8,7 @@ import {
 	Decoration,
 	DecorationSet
 } from "@codemirror/view";
+import { platform } from 'os';
 
 interface DateMatch {
 	from: number;
@@ -408,14 +409,16 @@ class Datepicker {
 		// TODO: add support for rtl windows: pseudo:if(window.rtl)
 		let left = pos.left;
 		let bottom = pos.bottom;
-		// if added to viewContent then offset the position
+		// if added to viewContainer then offset the position
 		if (this.viewContainer !== undefined) {
 			left = pos.left - this.viewContainer.getBoundingClientRect().left;
 			bottom = pos.bottom - this.viewContainer.getBoundingClientRect().top;
 		}
 		if (bottom + this.pickerContainer.getBoundingClientRect().height > this.viewContainer.innerHeight) {
 			this.pickerContainer.style.top = (pos.top - this.pickerContainer.getBoundingClientRect().height) + 'px';
-		} else this.pickerContainer.style.top = bottom + 'px';
+		} else {
+			this.pickerContainer.style.top = bottom + this.pickerContainer.getBoundingClientRect().height + 'px';
+		}
 		if (left + this.pickerContainer.getBoundingClientRect().width > this.viewContainer.innerWidth) {
 			this.pickerContainer.style.left = (this.viewContainer.getBoundingClientRect().width - this.pickerContainer.getBoundingClientRect().width) + 'px';//(left - this.pickerContainer.getBoundingClientRect().width) + 'px';
 		} else this.pickerContainer.style.left = left + 'px';
@@ -455,8 +458,8 @@ class Datepicker {
 		this.closedByButton = false;
 		this.escPressed = false;
 
+		this.viewContainer = activeDocument.querySelector('.cm-scroller') as HTMLElement;
 
-		this.viewContainer = activeDocument.querySelector('.cm-editor') as HTMLElement;
 		this.pickerContainer = this.viewContainer.createEl('div');
 		this.pickerContainer.className = 'datepicker-container';
 		this.pickerContainer.id = 'datepicker-container';
@@ -566,8 +569,8 @@ class Datepicker {
 			// delay is necessary because showing immediately doesn't show the calendar
 			// in the correct position, maybe it shows the calendar before the dom is updated
 			setTimeout(() => {
-				if(Datepicker.isOpened)
-				(this.pickerInput as any).showPicker();
+				if (Datepicker.isOpened)
+					(this.pickerInput as any).showPicker();
 			}, 20);
 		}
 	}
