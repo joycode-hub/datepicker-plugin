@@ -53,7 +53,6 @@ class DatepickerCMPlugin implements PluginValue {
 
 	datepickerScrollPositionHandler = (view: EditorView) => {
 		if (this.datepicker === undefined) return;
-		console.log(this.datepicker?.cursorPosition);
 		view.requestMeasure({
 			read: state => {
 				let pos = state.coordsAtPos(this.datepicker?.cursorPosition!);
