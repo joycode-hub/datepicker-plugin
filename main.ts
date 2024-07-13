@@ -8,7 +8,6 @@ import {
 	Decoration,
 	DecorationSet
 } from "@codemirror/view";
-import { platform } from 'os';
 
 interface DateMatch {
 	from: number;
@@ -23,7 +22,7 @@ interface DateFormat {
 }
 
 class PickerButtonWidget extends WidgetType {
-	toDOM(view: EditorView): HTMLElement {
+	toDOM(): HTMLElement {
 		const button = document.createElement('span');
 		button.className = 'datepicker-button';
 		setIcon(button, 'calendar');
@@ -50,7 +49,6 @@ function pickerButtons(dateMatches: DateMatch[]) {
 class DatepickerCMPlugin implements PluginValue {
 
 	private view: EditorView;
-	private previousDocumentTop: number | undefined;
 
 	datepickerScrollPositionHandler = (view: EditorView) => {
 		if (this.datepicker === undefined) return;
@@ -60,11 +58,13 @@ class DatepickerCMPlugin implements PluginValue {
 				return pos;
 			},
 			write: pos => {
-				this.datepicker!.updatePosition({
-					top: pos!.top,
-					left: pos!.left,
-					bottom: pos!.bottom
-				});
+				if (pos) {
+					this.datepicker!.updatePosition({
+						top: pos!.top,
+						left: pos!.left,
+						bottom: pos!.bottom
+					});
+				}
 			}
 		});
 	};
