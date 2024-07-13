@@ -420,7 +420,7 @@ class Datepicker {
 			this.pickerContainer.style.top = bottom + this.pickerContainer.getBoundingClientRect().height + 'px';
 		}
 		if (left + this.pickerContainer.getBoundingClientRect().width > this.viewContainer.innerWidth) {
-			this.pickerContainer.style.left = (this.viewContainer.getBoundingClientRect().width - this.pickerContainer.getBoundingClientRect().width) + 'px';//(left - this.pickerContainer.getBoundingClientRect().width) + 'px';
+			this.pickerContainer.style.left = (this.viewContainer.getBoundingClientRect().width - this.pickerContainer.getBoundingClientRect().width) + 'px';
 		} else this.pickerContainer.style.left = left + 'px';
 	}
 
@@ -440,7 +440,7 @@ class Datepicker {
 		if (!this.escPressed)
 			if (moment(this.pickerValue).isValid() === true)
 				if (this.onSubmit !== undefined)
-					setTimeout(() => this.onSubmit(this.pickerValue), 10);
+					setTimeout(() => this.onSubmit(this.pickerValue), 100);
 
 		let datepickers = activeDocument.getElementsByClassName("datepicker-container");
 		for (var i = 0; i < datepickers.length; i++) {
@@ -458,7 +458,7 @@ class Datepicker {
 		this.closedByButton = false;
 		this.escPressed = false;
 
-		this.viewContainer = activeDocument.querySelector('.cm-scroller') as HTMLElement;
+		this.viewContainer = activeDocument.querySelector('.cm-editor') as HTMLElement;
 
 		this.pickerContainer = this.viewContainer.createEl('div');
 		this.pickerContainer.className = 'datepicker-container';
@@ -482,7 +482,7 @@ class Datepicker {
 				// delay to allow editor to update on submit otherwise picker will immediately reopen
 				setTimeout(() => {
 					Datepicker.closeAll();
-				}, 5);
+				}, 100);
 			}
 			buttonEventAbortController.abort();
 		}
@@ -531,7 +531,7 @@ class Datepicker {
 					// delay to allow editor to update on submit otherwise picker will immediately reopen
 					setTimeout(() => {
 						Datepicker.closeAll();
-					}, 5);
+					}, 100);
 				}
 
 			}
@@ -571,7 +571,7 @@ class Datepicker {
 			setTimeout(() => {
 				if (Datepicker.isOpened)
 					(this.pickerInput as any).showPicker();
-			}, 20);
+			}, 150);
 		}
 	}
 
