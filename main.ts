@@ -456,8 +456,8 @@ class Datepicker {
 		this.escPressed = false;
 
 
-		this.viewContainer = activeDocument.querySelector('.cm-scroller') as HTMLElement;
-		this.pickerContainer = this.viewContainer.createEl('span');
+		this.viewContainer = activeDocument.querySelector('.cm-editor') as HTMLElement;
+		this.pickerContainer = this.viewContainer.createEl('div');
 		this.pickerContainer.className = 'datepicker-container';
 		this.pickerContainer.id = 'datepicker-container';
 		this.pickerInput = this.pickerContainer.createEl('input');
