@@ -195,7 +195,7 @@ class DatepickerCMPlugin implements PluginValue {
 				this.decorations = pickerButtons(this.dates);
 		}
 
-		if(update.state.selection.main.from !== update.state.selection.main.to){
+		if (update.state.selection.main.from !== update.state.selection.main.to) {
 			Datepicker.closeAll();
 			return;
 		}
@@ -211,7 +211,7 @@ class DatepickerCMPlugin implements PluginValue {
 					// prevent reopening date picker on the same date field when closed by button
 					// or when esc was pressed
 					if (this.previousDateMatch.from === match.from) {
-						if (this.datepicker.closedByButton || this.datepicker.escPressed) return;
+						if (this.datepicker.closedByButton || Datepicker.escPressed) return;
 					} else {
 						if (!Datepicker.openedByButton) {
 							Datepicker.calendarImmediatelyShownOnce = false;
@@ -222,8 +222,8 @@ class DatepickerCMPlugin implements PluginValue {
 			this.previousDateMatch = match;
 			this.datepicker?.closeAll();
 			if (DatepickerPlugin.settings.showAutomatically) {
-				this.openDatepicker(view, match);
-				// Datepicker.calendarImmediatelyShown = false;
+				if (Datepicker.performedInsertCommand) Datepicker.performedInsertCommand = false;
+				else this.openDatepicker(view, match);
 			}
 
 		} else {
@@ -354,6 +354,7 @@ export default class DatepickerPlugin extends Plugin {
 									}
 								})
 							}, 100);
+							Datepicker.performedInsertCommand = true;
 							datepicker.closeAll();
 						} else new Notice("Please enter a valid date");
 					}
@@ -386,6 +387,7 @@ export default class DatepickerPlugin extends Plugin {
 									}
 								})
 							}, 100);
+							Datepicker.performedInsertCommand = true;
 							datepicker.closeAll();
 						} else new Notice("Please enter a valid date and time");
 					}
@@ -425,15 +427,16 @@ class Datepicker {
 	private pickerInput: HTMLInputElement;
 	private viewContainer: HTMLElement;
 	public pickerValue: string;
-	public escPressed = false;
+	public static escPressed = false;
 	public cursorPosition: number;
 	public closedByButton = false;
 	public static openedByButton = false;
+	// prevents reopening the datepicker on the just inserted date
+	public static performedInsertCommand = false;
 	// Used for preventing the calendar from continuously reopening on every
 	// interaction with the datefield when set to immediatelyShowCalendar
 	public static calendarImmediatelyShownOnce = false;
-	// Used for preventing blur event from inserting date when
-	// inserting from command
+	// Used for preventing blur event from inserting date twice
 	private enterPressed = false;
 
 	constructor() {
@@ -488,7 +491,7 @@ class Datepicker {
 		this.cursorPosition = cursorPosition;
 		Datepicker.isOpened = true;
 		this.closedByButton = false;
-		this.escPressed = false;
+		Datepicker.escPressed = false;
 
 		this.viewContainer = activeDocument.querySelector('.cm-editor') as HTMLElement;
 
@@ -510,6 +513,7 @@ class Datepicker {
 			if (this.pickerInput.value === '') {
 				new Notice('Please enter a valid date');
 			} else {
+				this.enterPressed = true;
 				this.onSubmit(this.pickerInput.value);
 				buttonEventAbortController.abort();
 				// delay to allow editor to update on submit otherwise picker will immediately reopen
@@ -524,15 +528,15 @@ class Datepicker {
 		const cancelButton = this.pickerContainer.createEl('button');
 		cancelButton.className = 'datepicker-widget-button';
 		setIcon(cancelButton, 'x');
-
-		const cancelButtonEventHandler = (event: Event) => {
+		function cancelButtonEventHandler(event: Event) {
 			event.preventDefault();
-			this.escPressed = true;
+			Datepicker.escPressed = true;
 			Datepicker.closeAll();
 			buttonEventAbortController.abort();
 		}
-		cancelButton.addEventListener('click', cancelButtonEventHandler, { signal: buttonEventAbortController.signal });
-		cancelButton.addEventListener('touchend', cancelButtonEventHandler, { signal: buttonEventAbortController.signal });
+
+		cancelButton.addEventListener('click', cancelButtonEventHandler.bind(this), { signal: buttonEventAbortController.signal });
+		cancelButton.addEventListener('touchend', cancelButtonEventHandler.bind(this), { signal: buttonEventAbortController.signal });
 
 
 		const controller = new AbortController();
@@ -545,7 +549,7 @@ class Datepicker {
 				}
 			}
 			if (event.key === 'Escape') {
-				this.escPressed = true;
+				Datepicker.escPressed = true;
 				Datepicker.closeAll();
 				controller.abort();
 			}
@@ -565,11 +569,10 @@ class Datepicker {
 						Datepicker.closeAll();
 					}, 100);
 				}
-
 			}
 			// this works only when the datepicker is in focus
 			if (event.key === 'Escape') {
-				this.escPressed = true;
+				Datepicker.escPressed = true;
 				this.closeAll();
 			}
 		}, { capture: true });
@@ -579,12 +582,15 @@ class Datepicker {
 
 		});
 
-		this.pickerInput.addEventListener('blur', () => {
-			if (!this.escPressed && !this.enterPressed)
-				if (moment(this.pickerValue).isValid() === true)
-					if (this.onSubmit !== undefined)
-						setTimeout(() => this.onSubmit(this.pickerValue), 100);
-		});
+		const blurEventHandler = () => {
+			setTimeout(() => {
+				if (!Datepicker.escPressed && !this.enterPressed)
+					if (moment(this.pickerValue).isValid() === true)
+						if (this.onSubmit !== undefined)
+							this.onSubmit(this.pickerValue);
+			}, 600);
+		}
+		this.pickerInput.addEventListener('blur', blurEventHandler);
 
 		this.updatePosition(pos);
 
