@@ -227,6 +227,7 @@ class DatepickerCMPlugin implements PluginValue {
 			}
 
 		} else {
+			Datepicker.calendarImmediatelyShownOnce = false;
 			if (this.datepicker !== undefined) {
 				this.datepicker.closeAll();
 				this.datepicker = undefined;
@@ -279,7 +280,7 @@ function datepickerButtonEventHandler(e: Event, view: EditorView) {
 					dpCMPlugin.dates.find(
 						date => date.from <= cursorPositionAtButton && date.to >= cursorPositionAtButton)!
 					,);
-			}, 100);
+			}, 250);
 		}
 	}
 }
@@ -290,6 +291,7 @@ interface DatepickerPluginSettings {
 	immediatelyShowCalendar: boolean;
 	autofocus: boolean;
 	focusOnArrowDown: boolean;
+	insertIn24HourFormat: boolean;
 }
 
 const DEFAULT_SETTINGS: DatepickerPluginSettings = {
@@ -298,6 +300,7 @@ const DEFAULT_SETTINGS: DatepickerPluginSettings = {
 	immediatelyShowCalendar: false,
 	autofocus: false,
 	focusOnArrowDown: false,
+	insertIn24HourFormat: false
 }
 
 export default class DatepickerPlugin extends Plugin {
@@ -353,7 +356,7 @@ export default class DatepickerPlugin extends Plugin {
 										insert: moment(result).format("YYYY-MM-DD")
 									}
 								})
-							}, 100);
+							}, 250);
 							Datepicker.performedInsertCommand = true;
 							datepicker.closeAll();
 						} else new Notice("Please enter a valid date");
@@ -378,15 +381,18 @@ export default class DatepickerPlugin extends Plugin {
 					"DATEANDTIME", (result) => {
 						// TODO: format time according to picker local format
 						if (moment(result).isValid() === true) {
-							setTimeout(() => { // delay to wait for editor update to finish
+							let timeFormat;
+							if (DatepickerPlugin.settings.insertIn24HourFormat) timeFormat = "HH:mm";
+							else timeFormat = "hh:mm A";
+							setTimeout(() => { // delay to wait for editor update to finish								
 								editorView.dispatch({
 									changes: {
 										from: cursorPosition,
 										to: cursorPosition,
-										insert: moment(result).format("YYYY-MM-DD hh:mm A")
+										insert: moment(result).format("YYYY-MM-DD" + " " + timeFormat)
 									}
 								})
-							}, 100);
+							}, 250);
 							Datepicker.performedInsertCommand = true;
 							datepicker.closeAll();
 						} else new Notice("Please enter a valid date and time");
@@ -519,7 +525,7 @@ class Datepicker {
 				// delay to allow editor to update on submit otherwise picker will immediately reopen
 				setTimeout(() => {
 					Datepicker.closeAll();
-				}, 100);
+				}, 250);
 			}
 		}
 		acceptButton.addEventListener('click', acceptButtonEventHandler, { signal: buttonEventAbortController.signal });
@@ -567,7 +573,7 @@ class Datepicker {
 					// delay to allow editor to update on submit otherwise picker will immediately reopen
 					setTimeout(() => {
 						Datepicker.closeAll();
-					}, 100);
+					}, 250);
 				}
 			}
 			// this works only when the datepicker is in focus
@@ -619,7 +625,7 @@ class Datepicker {
 				if (Datepicker.isOpened)
 					(this.pickerInput as any).showPicker();
 				Datepicker.calendarImmediatelyShownOnce = true;
-			}, 150);
+			}, 350);
 
 		}
 	}
@@ -687,6 +693,16 @@ class DatepickerSettingTab extends PluginSettingTab {
 				.setValue(DatepickerPlugin.settings.focusOnArrowDown)
 				.onChange(async (value) => {
 					DatepickerPlugin.settings.focusOnArrowDown = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(settingsContainerElement)
+			.setName('Insert new time in 24 hour format')
+			.setDesc('When performing insert new date and time command, insert time in 24 hour format')
+			.addToggle((toggle) => toggle
+				.setValue(DatepickerPlugin.settings.insertIn24HourFormat)
+				.onChange(async (value) => {
+					DatepickerPlugin.settings.insertIn24HourFormat = value;
 					await this.plugin.saveSettings();
 				}));
 
