@@ -381,7 +381,7 @@ export default class DatepickerPlugin extends Plugin {
 					"DATEANDTIME", (result) => {
 						// TODO: format time according to picker local format
 						if (moment(result).isValid() === true) {
-							let timeFormat;
+							let timeFormat: string;
 							if (DatepickerPlugin.settings.insertIn24HourFormat) timeFormat = "HH:mm";
 							else timeFormat = "hh:mm A";
 							setTimeout(() => { // delay to wait for editor update to finish								
