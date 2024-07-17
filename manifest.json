@@ -1,7 +1,7 @@
 {
 	"id": "datepicker",
 	"name": "Datepicker",
-	"version": "0.3.14",
+	"version": "0.3.15",
 	"minAppVersion": "1.1.9",
 	"description": "Use a date picker to modify and insert date/time anywhere in your markdown notes.",
 	"author": "Mostafa Mohamed",
