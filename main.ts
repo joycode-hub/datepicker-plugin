@@ -225,7 +225,7 @@ class DatepickerCMPlugin implements PluginValue {
 			this.datepicker?.closeAll();
 			if (DatepickerPlugin.settings.showAutomatically) {
 				if (Datepicker.performedInsertCommand) Datepicker.performedInsertCommand = false;
-				else this.openDatepicker(view, match);
+				else setTimeout(() => this.openDatepicker(view, match), 100); // delay is to allow app dom to update between active leaf switching, otherwise datepicker doesn't open on first click in a new leaf
 			}
 
 		} else {
@@ -456,27 +456,14 @@ class Datepicker {
 		// TODO: add support for rtl windows: pseudo:if(window.rtl)
 		let left = pos.left;
 		let bottom = pos.bottom;
-		this.pickerContainer.style.top = bottom + 'px';
-		this.pickerContainer.style.left = left + 'px';
-		// if added to viewContainer then offset the position
-		// if (this.viewContainer !== undefined) {
-		// 	left = pos.left - this.viewContainer.getBoundingClientRect().left;
-		// 	// bottom = pos.bottom - this.viewContainer.getBoundingClientRect().top;
-		// }
-		// if (bottom + this.pickerContainer.getBoundingClientRect().height > this.viewContainer.innerHeight) {
-		// 	this.pickerContainer.style.top = (pos.top - this.pickerContainer.getBoundingClientRect().height) + 'px';
-		// } else {
-		// 	this.pickerContainer.style.top = bottom + this.pickerContainer.getBoundingClientRect().height + 'px';
-		// }
-		// const editor = activeDocument.querySelector(".cm-editor");
-		// if (left + this.pickerContainer.getBoundingClientRect().width > editor?.getBoundingClientRect().width!) {
-		// 	this.pickerContainer.style.left = (editor?.getBoundingClientRect().width! - this.pickerContainer.getBoundingClientRect().width) + 'px';
-		// } else this.pickerContainer.style.left = left + 'px';
-		if(left + this.pickerContainer.getBoundingClientRect().width > activeWindow.innerWidth) {
-			this.pickerContainer.style.left = (activeWindow.innerWidth - this.pickerContainer.getBoundingClientRect().width) + 'px';
-		} else this.pickerContainer.style.left = left + 'px';
-	
-		
+		if (bottom + this.pickerContainer.getBoundingClientRect().height > this.viewContainer.getBoundingClientRect().height)
+			this.pickerContainer.style.top = (pos.top - this.pickerContainer.getBoundingClientRect().height) - 5 + 'px';
+		else
+			this.pickerContainer.style.top = (bottom + this.pickerContainer.getBoundingClientRect().height) - this.viewContainer.getBoundingClientRect().top + 5 + 'px';
+
+		if (left + this.pickerContainer.getBoundingClientRect().width > activeWindow.innerWidth)
+			this.pickerContainer.style.left = (activeWindow.innerWidth - this.pickerContainer.getBoundingClientRect().width) - this.viewContainer.getBoundingClientRect().left + 'px';
+		else this.pickerContainer.style.left = left - this.viewContainer.getBoundingClientRect().left + 'px';
 	}
 
 	public focus() {
@@ -509,7 +496,12 @@ class Datepicker {
 		this.closedByButton = false;
 		Datepicker.escPressed = false;
 
-		this.viewContainer = activeDocument.body;
+
+		this.viewContainer = activeDocument.querySelector('.workspace-leaf.mod-active')?.querySelector('.cm-editor')!;
+		if (!this.viewContainer) {
+			console.error("Could not find view container");
+			return;
+		}
 		this.pickerContainer = this.viewContainer.createEl('div');
 		this.pickerContainer.className = 'datepicker-container';
 		this.pickerContainer.id = 'datepicker-container';
