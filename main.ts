@@ -69,46 +69,47 @@ class DatepickerCMPlugin implements PluginValue {
 		});
 	};
 
+	private formats: DateFormat[] = [
+		{
+			regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}[ T]\d{1,2}:\d{1,2}( )?([apm]{2})/ig,
+			formatToUser: "YYYY-MM-DD hh:mm A",
+			formatToPicker: "YYYY-MM-DDTHH:mm"
+		},
+		{
+			regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}[ T]\d{1,2}:\d{1,2}/g,
+			formatToUser: "YYYY-MM-DD HH:mm",
+			formatToPicker: "YYYY-MM-DDTHH:mm"
+		},
+		{
+			regex: /\d{1,2}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{4} \d{1,2}:\d{1,2}( )?([apm]{2})/ig,
+			formatToUser: "DD-MM-YYYY hh:mm A",
+			formatToPicker: "YYYY-MM-DDTHH:mm"
+		},
+		{
+			regex: /\d{1,2}[-\/\\.]{1}\d{4}[ T]\d{1,2}:\d{1,2}/g,
+			formatToUser: "DD-MM-YYYY HH:mm",
+			formatToPicker: "YYYY-MM-DDTHH:mm"
+		},
+		{
+			regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}/g,
+			formatToUser: "YYYY-MM-DD",
+			formatToPicker: "YYYY-MM-DD",
+
+		},
+		{
+			regex: /\d{1,2}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{4}/g,
+			formatToUser: "DD-MM-YYYY",
+			formatToPicker: "YYYY-MM-DD"
+
+		}
+	]
+
 	private getAllDates(view: EditorView): DateMatch[] {
 		const textView = view.state.doc.toString();
-		const formats: DateFormat[] = [
-			{
-				regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}[ T]\d{1,2}:\d{1,2}( )?([apm]{2})/ig,
-				formatToUser: "YYYY-MM-DD hh:mm A",
-				formatToPicker: "YYYY-MM-DDTHH:mm"
-			},
-			{
-				regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}[ T]\d{1,2}:\d{1,2}/g,
-				formatToUser: "YYYY-MM-DD HH:mm",
-				formatToPicker: "YYYY-MM-DDTHH:mm"
-			},
-			{
-				regex: /\d{1,2}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{4} \d{1,2}:\d{1,2}( )?([apm]{2})/ig,
-				formatToUser: "DD-MM-YYYY hh:mm A",
-				formatToPicker: "YYYY-MM-DDTHH:mm"
-			},
-			{
-				regex: /\d{1,2}[-\/\\.]{1}\d{4}[ T]\d{1,2}:\d{1,2}/g,
-				formatToUser: "DD-MM-YYYY HH:mm",
-				formatToPicker: "YYYY-MM-DDTHH:mm"
-			},
-			{
-				regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}/g,
-				formatToUser: "YYYY-MM-DD",
-				formatToPicker: "YYYY-MM-DD",
-
-			},
-			{
-				regex: /\d{1,2}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{4}/g,
-				formatToUser: "DD-MM-YYYY",
-				formatToPicker: "YYYY-MM-DD"
-
-			}
-		]
 		let matchingDate: RegExpExecArray | null;
 		let dateMatches: DateMatch[] = [];
 
-		for (const format of formats) {
+		for (const format of this.formats) {
 			while ((matchingDate = format.regex.exec(textView ?? "")) !== null) {
 
 				if (dateMatches.some((match) => match.from === matchingDate?.index)) {
