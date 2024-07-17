@@ -468,8 +468,9 @@ class Datepicker {
 		// } else {
 		// 	this.pickerContainer.style.top = bottom + this.pickerContainer.getBoundingClientRect().height + 'px';
 		// }
-		// if (left + this.pickerContainer.getBoundingClientRect().width > this.viewContainer.innerWidth) {
-		// 	this.pickerContainer.style.left = (this.viewContainer.getBoundingClientRect().width - this.pickerContainer.getBoundingClientRect().width) + 'px';
+		// const editor = activeDocument.querySelector(".cm-editor");
+		// if (left + this.pickerContainer.getBoundingClientRect().width > editor?.getBoundingClientRect().width!) {
+		// 	this.pickerContainer.style.left = (editor?.getBoundingClientRect().width! - this.pickerContainer.getBoundingClientRect().width) + 'px';
 		// } else this.pickerContainer.style.left = left + 'px';
 	}
 
