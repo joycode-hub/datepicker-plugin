@@ -52,7 +52,7 @@ class DatepickerCMPlugin implements PluginValue {
 
 	datepickerScrollPositionHandler = (view: EditorView) => {
 		if (this.datepicker === undefined) return;
-		view.requestMeasure({
+		this.view.requestMeasure({
 			read: state => {
 				let pos = state.coordsAtPos(this.datepicker?.cursorPosition!);
 				return pos;
@@ -179,6 +179,7 @@ class DatepickerCMPlugin implements PluginValue {
 
 	}
 	update(update: ViewUpdate) {
+		this.view = update.view;
 		/*
 		CM fires two update events for selection change,
 		I use the below code section to ignore the second one
@@ -455,19 +456,21 @@ class Datepicker {
 		// TODO: add support for rtl windows: pseudo:if(window.rtl)
 		let left = pos.left;
 		let bottom = pos.bottom;
+		this.pickerContainer.style.top = bottom + 'px';
+		this.pickerContainer.style.left = left + 'px';
 		// if added to viewContainer then offset the position
-		if (this.viewContainer !== undefined) {
-			left = pos.left - this.viewContainer.getBoundingClientRect().left;
-			bottom = pos.bottom - this.viewContainer.getBoundingClientRect().top;
-		}
-		if (bottom + this.pickerContainer.getBoundingClientRect().height > this.viewContainer.innerHeight) {
-			this.pickerContainer.style.top = (pos.top - this.pickerContainer.getBoundingClientRect().height) + 'px';
-		} else {
-			this.pickerContainer.style.top = bottom + this.pickerContainer.getBoundingClientRect().height + 'px';
-		}
-		if (left + this.pickerContainer.getBoundingClientRect().width > this.viewContainer.innerWidth) {
-			this.pickerContainer.style.left = (this.viewContainer.getBoundingClientRect().width - this.pickerContainer.getBoundingClientRect().width) + 'px';
-		} else this.pickerContainer.style.left = left + 'px';
+		// if (this.viewContainer !== undefined) {
+		// 	left = pos.left - this.viewContainer.getBoundingClientRect().left;
+		// 	// bottom = pos.bottom - this.viewContainer.getBoundingClientRect().top;
+		// }
+		// if (bottom + this.pickerContainer.getBoundingClientRect().height > this.viewContainer.innerHeight) {
+		// 	this.pickerContainer.style.top = (pos.top - this.pickerContainer.getBoundingClientRect().height) + 'px';
+		// } else {
+		// 	this.pickerContainer.style.top = bottom + this.pickerContainer.getBoundingClientRect().height + 'px';
+		// }
+		// if (left + this.pickerContainer.getBoundingClientRect().width > this.viewContainer.innerWidth) {
+		// 	this.pickerContainer.style.left = (this.viewContainer.getBoundingClientRect().width - this.pickerContainer.getBoundingClientRect().width) + 'px';
+		// } else this.pickerContainer.style.left = left + 'px';
 	}
 
 	public focus() {
@@ -500,8 +503,7 @@ class Datepicker {
 		this.closedByButton = false;
 		Datepicker.escPressed = false;
 
-		this.viewContainer = activeDocument.querySelector('.cm-editor') as HTMLElement;
-
+		this.viewContainer = activeDocument.body;
 		this.pickerContainer = this.viewContainer.createEl('div');
 		this.pickerContainer.className = 'datepicker-container';
 		this.pickerContainer.id = 'datepicker-container';
