@@ -50,7 +50,7 @@ class DatepickerCMPlugin implements PluginValue {
 
 	private view: EditorView;
 
-	datepickerScrollPositionHandler = (view: EditorView) => {
+	datepickerScrollPositionHandler = () => {
 		if (this.datepicker === undefined) return;
 		this.view.requestMeasure({
 			read: state => {
@@ -137,8 +137,8 @@ class DatepickerCMPlugin implements PluginValue {
 	private previousDateMatch: DateMatch;
 	dates: DateMatch[] = [];
 
+	private justReplaced = false;// flag to prevent datepicker opening after just replacing after delay on changing tab
 	openDatepicker(view: EditorView, match: DateMatch) {
-
 		const dateToPicker = moment(match.value, [
 			"YYYY-MM-DD hh:mm A"
 			, "YYYY-MM-DDThh:mm"
@@ -150,8 +150,8 @@ class DatepickerCMPlugin implements PluginValue {
 		], false).format(match.format.formatToPicker);
 
 		view.requestMeasure({
-			read: state => {
-				let pos = state.coordsAtPos(match.from);
+			read: view => {
+				let pos = view.coordsAtPos(match.from);
 				return pos;
 			},
 			write: pos => {
@@ -172,6 +172,7 @@ class DatepickerCMPlugin implements PluginValue {
 								insert: dateFromPicker
 							},
 						});
+						this.justReplaced = true;
 						view.dispatch(transaction);
 					});
 			}
@@ -213,7 +214,7 @@ class DatepickerCMPlugin implements PluginValue {
 					// prevent reopening date picker on the same date field when closed by button
 					// or when esc was pressed
 					if (this.previousDateMatch.from === match.from) {
-						if (this.datepicker.closedByButton || Datepicker.escPressed) return;
+						if (this.datepicker?.closedByButton || Datepicker.escPressed) return;
 					} else {
 						if (!Datepicker.openedByButton) {
 							Datepicker.calendarImmediatelyShownOnce = false;
@@ -222,12 +223,18 @@ class DatepickerCMPlugin implements PluginValue {
 				}
 			}
 			this.previousDateMatch = match;
-			this.datepicker?.closeAll();
-			if (DatepickerPlugin.settings.showAutomatically) {
+			if (DatepickerPlugin.settings.showAutomatically)
+				// prevent reopening date picker on the same date field when just performed insert command
 				if (Datepicker.performedInsertCommand) Datepicker.performedInsertCommand = false;
-				else setTimeout(() => this.openDatepicker(view, match), 100); // delay is to allow app dom to update between active leaf switching, otherwise datepicker doesn't open on first click in a new leaf
-			}
-
+				else
+					if (this.justReplaced === false) {
+						// delay is to allow app dom to update between active leaf switching, otherwise datepicker doesn't open on first click in a different leaf
+						setTimeout(() => {
+							this.datepicker?.closeAll();
+							this.openDatepicker(view, match)
+						}
+							, 100);
+					} else this.justReplaced = false;
 		} else {
 			Datepicker.calendarImmediatelyShownOnce = false;
 			if (this.datepicker !== undefined) {
@@ -407,6 +414,7 @@ export default class DatepickerPlugin extends Plugin {
 		this.addSettingTab(new DatepickerSettingTab(this.app, this));
 		this.registerEvent(
 			this.app.workspace.on("active-leaf-change", () => {
+				Datepicker.escPressed = false;
 				Datepicker.closeAll();
 			}
 			)
@@ -422,7 +430,6 @@ export default class DatepickerPlugin extends Plugin {
 
 	async saveSettings() {
 		await this.saveData(DatepickerPlugin.settings);
-		activeWindow.dispatchEvent(new Event(""));
 	}
 
 }
@@ -446,6 +453,7 @@ class Datepicker {
 	public static calendarImmediatelyShownOnce = false;
 	// Used for preventing blur event from inserting date twice
 	private enterPressed = false;
+	// Use: when true set a delay before opening the datepicker to allow the dom to update before opening
 
 	constructor() {
 		this.closeAll();
@@ -454,16 +462,15 @@ class Datepicker {
 
 	public updatePosition(pos: { top: number, left: number, bottom: number }) {
 		// TODO: add support for rtl windows: pseudo:if(window.rtl)
-		let left = pos.left;
-		let bottom = pos.bottom;
-		if (bottom + this.pickerContainer.getBoundingClientRect().height > this.viewContainer.getBoundingClientRect().height)
-			this.pickerContainer.style.top = (pos.top - this.pickerContainer.getBoundingClientRect().height) - 5 + 'px';
-		else
-			this.pickerContainer.style.top = (bottom + this.pickerContainer.getBoundingClientRect().height) - this.viewContainer.getBoundingClientRect().top + 5 + 'px';
+		const left = pos.left - this.viewContainer.getBoundingClientRect().left;
+		if (left + this.pickerContainer.offsetWidth > this.viewContainer.offsetWidth)
+			this.pickerContainer.style.left = left - ((left + this.pickerContainer.offsetWidth) - this.viewContainer.offsetWidth) + 'px';
+		else this.pickerContainer.style.left = left + 'px';
 
-		if (left + this.pickerContainer.getBoundingClientRect().width > activeWindow.innerWidth)
-			this.pickerContainer.style.left = (activeWindow.innerWidth - this.pickerContainer.getBoundingClientRect().width) - this.viewContainer.getBoundingClientRect().left + 'px';
-		else this.pickerContainer.style.left = left - this.viewContainer.getBoundingClientRect().left + 'px';
+		const leafTop = this.viewContainer.closest('.workspace-leaf-content')!.getBoundingClientRect().top;
+		if (pos.bottom - leafTop > this.viewContainer.offsetHeight)
+			this.pickerContainer.style.top = pos.top - leafTop - this.pickerContainer.offsetHeight + 'px';
+		else this.pickerContainer.style.top = pos.bottom - leafTop + 'px';
 	}
 
 	public focus() {
@@ -478,12 +485,15 @@ class Datepicker {
 		}
 	}
 	public closeAll() {
-		Datepicker.isOpened = false;
-
-		let datepickers = activeDocument.getElementsByClassName("datepicker-container");
-		for (var i = 0; i < datepickers.length; i++) {
-			datepickers[i].remove();
+		if (Platform.isMobile) {// datepicker mobile doesn't use focus and blur events, so I save on close
+			setTimeout(() => {
+				if (!Datepicker.escPressed && !this.enterPressed)
+					if (moment(this.pickerValue).isValid() === true)
+						if (this.onSubmit !== undefined)
+							this.onSubmit(this.pickerValue);
+			}, 600);
 		}
+		Datepicker.closeAll();
 	}
 
 	public open(pos: { top: number, left: number, right: number, bottom: number }, cursorPosition: number,
@@ -495,7 +505,6 @@ class Datepicker {
 		Datepicker.isOpened = true;
 		this.closedByButton = false;
 		Datepicker.escPressed = false;
-
 
 		this.viewContainer = activeDocument.querySelector('.workspace-leaf.mod-active')?.querySelector('.cm-editor')!;
 		if (!this.viewContainer) {
@@ -590,9 +599,10 @@ class Datepicker {
 		});
 
 		const blurEventHandler = () => {
+			const value = this.pickerInput.value;
 			setTimeout(() => {
 				if (!Datepicker.escPressed && !this.enterPressed)
-					if (moment(this.pickerValue).isValid() === true)
+					if (moment(value).isValid() === true)
 						if (this.onSubmit !== undefined)
 							this.onSubmit(this.pickerValue);
 			}, 600);
