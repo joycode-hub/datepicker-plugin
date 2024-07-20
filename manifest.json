@@ -5,6 +5,9 @@
 	"minAppVersion": "1.1.9",
 	"description": "Use a date picker to modify and insert date/time anywhere in your markdown notes.",
 	"author": "Mostafa Mohamed",
-	"fundingUrl": "https://buymeacoffee.com/joycode",
+	"fundingUrl": {
+		"Buy Me a Coffee": "https://buymeacoffee.com/joycode",
+		"Support me on Ko-fi": "https://ko-fi.com/joycode"
+	},
 	"isDesktopOnly": false
 }
