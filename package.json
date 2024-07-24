@@ -1,6 +1,6 @@
 {
 	"name": "datepicker",
-	"version": "0.3.17",
+	"version": "0.3.18",
 	"description": "Use a date picker to modify and insert date/time anywhere in your markdown notes.",
 	"main": "main.js",
 	"scripts": {
