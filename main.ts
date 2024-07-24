@@ -20,6 +20,11 @@ interface DateFormat {
 	formatToUser: string;
 	formatToPicker: string;
 }
+interface VisibleText {
+	from: number;
+	to: number;
+	text: string;
+}
 
 class PickerButtonWidget extends WidgetType {
 	toDOM(): HTMLElement {
@@ -94,28 +99,26 @@ class DatepickerCMPlugin implements PluginValue {
 			regex: /\d{4}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{1,2}/g,
 			formatToUser: "YYYY-MM-DD",
 			formatToPicker: "YYYY-MM-DD",
-
 		},
 		{
 			regex: /\d{1,2}[-\/\\.]{1}\d{1,2}[-\/\\.]{1}\d{4}/g,
 			formatToUser: "DD-MM-YYYY",
 			formatToPicker: "YYYY-MM-DD"
-
 		}
 	]
 
 	private getAllDates(view: EditorView): DateMatch[] {
-		const textView = view.state.doc.toString();
+		let visibleText: VisibleText[] = [];
+		visibleText = view.visibleRanges.map(r => { return { from: r.from, to: r.to, text: view.state.doc.sliceString(r.from, r.to) } });
 		let matchingDate: RegExpExecArray | null;
 		let dateMatches: DateMatch[] = [];
 
-		for (const format of this.formats) {
-			while ((matchingDate = format.regex.exec(textView ?? "")) !== null) {
-
-				if (dateMatches.some((match) => match.from === matchingDate?.index)) {
-					continue;
+		for (const vt of visibleText) {
+			for (const format of this.formats) {
+				while ((matchingDate = format.regex.exec(vt.text ?? "")) !== null) {
+					if (dateMatches.some((match) => match.from === (matchingDate?.index! + vt.from))) continue;
+					dateMatches.push({ from: matchingDate.index + vt.from, to: matchingDate.index + matchingDate[0].length + vt.from, value: matchingDate[0], format: format });
 				}
-				dateMatches.push({ from: matchingDate.index, to: matchingDate.index + matchingDate[0].length, value: matchingDate[0], format: format });
 			}
 		}
 		return dateMatches;
@@ -137,7 +140,7 @@ class DatepickerCMPlugin implements PluginValue {
 	private previousDateMatch: DateMatch;
 	dates: DateMatch[] = [];
 
-	private justReplaced = false;// flag to prevent datepicker opening after just replacing after delay on changing tab
+	private justReplaced = false;// flag to prevent datepicker opening after just replacing after delay on changing active leaf
 	openDatepicker(view: EditorView, match: DateMatch) {
 		const dateToPicker = moment(match.value, [
 			"YYYY-MM-DD hh:mm A"
@@ -181,6 +184,12 @@ class DatepickerCMPlugin implements PluginValue {
 	}
 	update(update: ViewUpdate) {
 		this.view = update.view;
+
+		this.dates = this.getAllDates(update.view);
+
+		if (DatepickerPlugin.settings.showButtons)
+			this.decorations = pickerButtons(this.dates);
+
 		/*
 		CM fires two update events for selection change,
 		I use the below code section to ignore the second one
@@ -190,13 +199,6 @@ class DatepickerCMPlugin implements PluginValue {
 			update.state.selection.main.from === update.startState.selection.main.from &&
 			update.state.selection.main.to === update.startState.selection.main.to
 		) return;
-
-		this.dates = this.getAllDates(update.view);
-
-		if (update.docChanged || update.viewportChanged) {
-			if (DatepickerPlugin.settings.showButtons)
-				this.decorations = pickerButtons(this.dates);
-		}
 
 		if (update.state.selection.main.from !== update.state.selection.main.to) {
 			Datepicker.closeAll();
@@ -243,7 +245,6 @@ class DatepickerCMPlugin implements PluginValue {
 			}
 		}
 	}
-
 
 	destroy() {
 		Datepicker.closeAll();
