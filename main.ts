@@ -356,7 +356,7 @@ export default class DatepickerPlugin extends Plugin {
 				const datepicker = new Datepicker()
 				datepicker.open(
 					{ top: pos.top, left: pos.left, right: pos.right, bottom: pos.bottom }, cursorPosition,
-					"", (result) => {
+					"DATE", (result) => {
 						if (moment(result).isValid() === true) {
 							setTimeout(() => { // delay to wait for editor update to finish
 								editorView.dispatch({
@@ -370,6 +370,43 @@ export default class DatepickerPlugin extends Plugin {
 							Datepicker.performedInsertCommand = true;
 							datepicker.closeAll();
 						} else new Notice("Please enter a valid date");
+					}
+				)
+				datepicker.focus();
+			}
+		});
+		this.addCommand({
+			id: 'insert-time',
+			name: 'Insert new time',
+			editorCallback: (editor: Editor) => {
+				// @ts-expect-error, not typed
+				const editorView = editor.cm as EditorView;
+				const cursorPosition = editorView.state.selection.main.to;
+				if (cursorPosition === undefined) return;
+				const pos = editorView.coordsAtPos(cursorPosition);
+				if (!pos) return;
+				const datepicker = new Datepicker()
+				datepicker.open(
+					{ top: pos.top, left: pos.left, right: pos.right, bottom: pos.bottom }, cursorPosition,
+					"TIME", (result) => {
+						// TODO: format time according to picker local format
+						
+						if (moment(result,"HH:mm").isValid() === true) {
+							let timeFormat: string;
+								if (DatepickerPlugin.settings.insertIn24HourFormat) timeFormat = "HH:mm";
+								else timeFormat = "hh:mm A";
+							setTimeout(() => { // delay to wait for editor update to finish
+								editorView.dispatch({
+									changes: {
+										from: cursorPosition,
+										to: cursorPosition,
+										insert: moment(result,"HH:mm").format(timeFormat)
+									}
+								})
+							}, 250);
+							Datepicker.performedInsertCommand = true;
+							datepicker.closeAll();
+						} else new Notice("Please enter a valid time");
 					}
 				)
 				datepicker.focus();
@@ -409,6 +446,28 @@ export default class DatepickerPlugin extends Plugin {
 					}
 				)
 				datepicker.focus();
+			}
+		});
+		this.addCommand({
+			id: 'insert-current-time',
+			name: 'Insert current time',
+			editorCallback: (editor: Editor) => {
+				// @ts-expect-error, not typed
+				const editorView = editor.cm as EditorView;
+				const cursorPosition = editorView.state.selection.main.to;
+				if (cursorPosition === undefined) return;
+				const pos = editorView.coordsAtPos(cursorPosition);
+				if (!pos) return;
+				let timeFormat: string;
+								if (DatepickerPlugin.settings.insertIn24HourFormat) timeFormat = "HH:mm";
+								else timeFormat = "hh:mm A";
+				editorView.dispatch({
+					changes: {
+						from: cursorPosition,
+						to: cursorPosition,
+						insert: moment().format(timeFormat)
+					}
+				})
 			}
 		});
 
@@ -516,7 +575,9 @@ class Datepicker {
 		this.pickerContainer.className = 'datepicker-container';
 		this.pickerContainer.id = 'datepicker-container';
 		this.pickerInput = this.pickerContainer.createEl('input');
-		if (datetime.length <= 10) this.pickerInput.type = 'date';
+		if (datetime === "TIME") {
+			this.pickerInput.type = 'time';
+		} else if (datetime === "DATE") this.pickerInput.type = 'date';
 		else this.pickerInput.type = 'datetime-local';
 		this.pickerInput.id = 'datepicker-input';
 		this.pickerInput.className = 'datepicker-input';
@@ -527,6 +588,7 @@ class Datepicker {
 		const buttonEventAbortController = new AbortController();
 		const acceptButtonEventHandler = (event: Event) => {
 			event.preventDefault();
+			
 			if (this.pickerInput.value === '') {
 				new Notice('Please enter a valid date');
 			} else {
