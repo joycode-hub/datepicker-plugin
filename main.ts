@@ -185,10 +185,12 @@ class DatepickerCMPlugin implements PluginValue {
 	update(update: ViewUpdate) {
 		this.view = update.view;
 
-		this.dates = this.getAllDates(update.view);
+		if (!update.selectionSet) {
+			this.dates = this.getAllDates(update.view);
 
-		if (DatepickerPlugin.settings.showButtons)
-			this.decorations = pickerButtons(this.dates);
+			if (DatepickerPlugin.settings.showButtons)
+				this.decorations = pickerButtons(this.dates);
+		}
 
 		/*
 		CM fires two update events for selection change,
@@ -200,17 +202,20 @@ class DatepickerCMPlugin implements PluginValue {
 			update.state.selection.main.to === update.startState.selection.main.to
 		) return;
 
-		if (update.state.selection.main.from !== update.state.selection.main.to) {
-			Datepicker.closeAll();
-			return;
-		}
-
 		const { view } = update;
 
 		const cursorPosition = view.state.selection.main.head;
 
 		const match = this.dates.find(date => date.from <= cursorPosition && date.to >= cursorPosition);
-		if (match) {
+		if (match) {			
+			const { from } = update.state.selection.main;
+			const { to } = update.state.selection.main;
+			if (from !== to)
+				if (from !== match.from || to !== match.to) {					
+					Datepicker.closeAll();
+					return;
+				}
+
 			if (this.datepicker !== undefined) {
 				if (this.previousDateMatch !== undefined) {
 					// prevent reopening date picker on the same date field when closed by button
@@ -224,6 +229,7 @@ class DatepickerCMPlugin implements PluginValue {
 					}
 				}
 			}
+
 			this.previousDateMatch = match;
 			if (DatepickerPlugin.settings.showAutomatically)
 				// prevent reopening date picker on the same date field when just performed insert command
@@ -302,6 +308,7 @@ interface DatepickerPluginSettings {
 	autofocus: boolean;
 	focusOnArrowDown: boolean;
 	insertIn24HourFormat: boolean;
+	selectDateText: boolean;
 }
 
 const DEFAULT_SETTINGS: DatepickerPluginSettings = {
@@ -311,6 +318,7 @@ const DEFAULT_SETTINGS: DatepickerPluginSettings = {
 	autofocus: false,
 	focusOnArrowDown: false,
 	insertIn24HourFormat: false
+	, selectDateText: false
 }
 
 export default class DatepickerPlugin extends Plugin {
@@ -717,6 +725,17 @@ class DatepickerSettingTab extends PluginSettingTab {
 					DatepickerPlugin.settings.insertIn24HourFormat = value;
 					await this.plugin.saveSettings();
 				}));
+
+		new Setting(settingsContainerElement)
+			.setName('Select date text')
+			.setDesc('Automatically select the entire date text when a date is selected')
+			.addToggle((toggle) => toggle
+				.setValue(DatepickerPlugin.settings.selectDateText)
+				.onChange(async (value) => {
+					DatepickerPlugin.settings.selectDateText = value;
+					await this.plugin.saveSettings();
+				}));
+
 
 	}
 }
