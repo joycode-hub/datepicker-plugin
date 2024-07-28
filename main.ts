@@ -1,4 +1,4 @@
-import { App, Editor, Plugin, PluginSettingTab, Setting, moment, Platform, Notice, setIcon, Events } from 'obsidian';
+import { App, Editor, Plugin, PluginSettingTab, Setting, moment, Platform, Notice, setIcon } from 'obsidian';
 import {
 	ViewUpdate,
 	PluginValue,
@@ -166,7 +166,6 @@ class DatepickerCMPlugin implements PluginValue {
 	private previousDateMatch: DateMatch;
 	dates: DateMatch[] = [];
 
-	private justReplaced = false;// flag to prevent datepicker opening after just replacing after delay on changing active leaf
 	private performedSelectText = false;// flag to prevent repeatedly selecting text
 
 	openDatepicker(view: EditorView, match: DateMatch) {
@@ -193,7 +192,6 @@ class DatepickerCMPlugin implements PluginValue {
 								insert: dateFromPicker
 							},
 						});
-						this.justReplaced = true;
 						view.dispatch(transaction);
 					});
 			}
@@ -228,7 +226,7 @@ class DatepickerCMPlugin implements PluginValue {
 		// saves performance and mitigates some bugs
 		if (this.updateTimer) return;
 		this.updateTimer = true;
-		setTimeout(() => this.updateTimer = false, 500);
+		setTimeout(() => this.updateTimer = false, 300);
 
 		const { view } = update;
 
@@ -249,7 +247,7 @@ class DatepickerCMPlugin implements PluginValue {
 				if (this.previousDateMatch !== undefined) {
 					// prevent reopening date picker on the same date field when closed by button
 					// or when esc was pressed
-					if (this.previousDateMatch.from === match.from) {
+					if (this.previousDateMatch === match) {
 						if (this.datepicker?.closedByButton || Datepicker.escPressed) return;
 					} else {
 						this.performedSelectText = false;
@@ -260,27 +258,24 @@ class DatepickerCMPlugin implements PluginValue {
 				}
 			} else this.performedSelectText = false;
 
-			if (DatepickerPlugin.settings.selectDateText && !this.performedSelectText && !update.docChanged){
-					this.performedSelectText = true;
-					setTimeout(() => view.dispatch({ selection: { anchor: match.from, head: match.to } }), 300);
-				}
+			if (DatepickerPlugin.settings.selectDateText && !this.performedSelectText && !update.docChanged) {
+				this.performedSelectText = true;
+				setTimeout(() => view.dispatch({ selection: { anchor: match.from, head: match.to } }), 250);
+			}
 
 			this.previousDateMatch = match;
 			if (DatepickerPlugin.settings.showAutomatically)
 				// prevent reopening date picker on the same date field when just performed insert command
 				if (Datepicker.performedInsertCommand) Datepicker.performedInsertCommand = false;
 				else
-					if (this.justReplaced === false) {
-						// delay is to allow app dom to update between active leaf switching, otherwise datepicker doesn't open on first click in a different leaf
-						setTimeout(() => {
-							this.datepicker?.closeAll();
-							this.openDatepicker(view, match)
-						}
-							, 100);
-					} else this.justReplaced = false;
+					// delay is to allow app dom to update between active leaf switching, otherwise datepicker doesn't open on first click in a different leaf
+					setTimeout(() => {
+						this.datepicker?.closeAll();
+						this.openDatepicker(view, match)
+					}
+						, 100);
 		} else {
 			Datepicker.calendarImmediatelyShownOnce = false;
-			this.justReplaced = false;
 			this.performedSelectText = false;
 			if (this.datepicker !== undefined) {
 				this.datepicker.closeAll();
@@ -401,7 +396,7 @@ export default class DatepickerPlugin extends Plugin {
 				if (!pos) return;
 
 				const datepicker = new Datepicker()
-				const dateFormat: DateFormat = { regex: new RegExp(""), type: "DATETIME", formatToUser: "", formatToPicker: "" }
+				const dateFormat: DateFormat = { regex: new RegExp(""), type: "DATE", formatToUser: "", formatToPicker: "" }
 				const dateType: DateMatch = { from: cursorPosition, to: cursorPosition, value: "", format: dateFormat };
 				datepicker.open(
 					{ top: pos.top, left: pos.left, right: pos.right, bottom: pos.bottom }, dateType,
@@ -761,7 +756,7 @@ class Datepicker {
 			setTimeout(() => {
 				if (!Datepicker.escPressed && !this.enterPressed)
 					this.submit();
-			}, 500);
+			}, 100);
 		}
 		this.pickerInput.addEventListener('blur', blurEventHandler);
 
