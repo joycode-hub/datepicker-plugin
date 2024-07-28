@@ -28,7 +28,7 @@ interface VisibleText {
 	text: string;
 }
 
-class PickerButtonWidget extends WidgetType {
+class DateButtonWidget extends WidgetType {
 	toDOM(): HTMLElement {
 		const button = document.createElement('span');
 		button.className = 'datepicker-button';
@@ -40,15 +40,38 @@ class PickerButtonWidget extends WidgetType {
 		return true;
 	}
 }
+class TimeButtonWidget extends WidgetType {
+	toDOM(): HTMLElement {
+		const button = document.createElement('span');
+		button.className = 'datepicker-button';
+		setIcon(button, 'clock');
+		return button;
+	}
+	ignoreEvent() { return false };
+	eq(): boolean {
+		return true;
+	}
+}
 
 function pickerButtons(dateMatches: DateMatch[]) {
 	const buttons = [];
+	if (!DatepickerPlugin.settings.showDateButtons && !DatepickerPlugin.settings.showTimeButtons) return Decoration.set([]);
+
 	for (const dateMatch of dateMatches) {
-		let buttonDeco = Decoration.widget({
-			widget: new PickerButtonWidget(),
-			side: -1
-		})
-		buttons.push(buttonDeco.range(dateMatch.from));
+		if (DatepickerPlugin.settings.showDateButtons && (dateMatch.format.type === 'DATE' || dateMatch.format.type === 'DATETIME')) {
+			let buttonDeco = Decoration.widget({
+				widget: new DateButtonWidget(),
+				side: -1
+			})
+			buttons.push(buttonDeco.range(dateMatch.from));
+		} else
+			if (DatepickerPlugin.settings.showTimeButtons && dateMatch.format.type === 'TIME') {
+				let buttonDeco = Decoration.widget({
+					widget: new TimeButtonWidget(),
+					side: -1
+				})
+				buttons.push(buttonDeco.range(dateMatch.from));
+			}
 	}
 	return Decoration.set(buttons, true);
 }
@@ -158,8 +181,7 @@ class DatepickerCMPlugin implements PluginValue {
 		this.view = view;
 		view.scrollDOM.addEventListener("scroll", this.datepickerScrollPositionHandler.bind(this, view), { signal: this.scrollEventAbortController.signal });
 		this.dates = this.getAllDates(view);
-		if (DatepickerPlugin.settings.showButtons)
-			this.decorations = pickerButtons(this.dates);
+		this.decorations = pickerButtons(this.dates);
 	}
 
 	public datepicker: Datepicker | undefined = undefined;
@@ -206,9 +228,7 @@ class DatepickerCMPlugin implements PluginValue {
 		if (update.docChanged || update.geometryChanged || update.viewportChanged || update.heightChanged) {
 			this.datepickerPositionHandler();
 			this.dates = this.getAllDates(update.view);
-
-			if (DatepickerPlugin.settings.showButtons)
-				this.decorations = pickerButtons(this.dates);
+			this.decorations = pickerButtons(this.dates);
 		}
 
 
@@ -291,11 +311,7 @@ class DatepickerCMPlugin implements PluginValue {
 }
 export const datepickerCMPlugin = ViewPlugin.fromClass(DatepickerCMPlugin, {
 	decorations: (v) => {
-		if (DatepickerPlugin.settings.showButtons)
-			return v.decorations
-		else {
-			return Decoration.set([]);
-		}
+		return v.decorations;
 	},
 
 	eventHandlers: {
@@ -336,7 +352,8 @@ function datepickerButtonEventHandler(e: Event, view: EditorView) {
 }
 
 interface DatepickerPluginSettings {
-	showButtons: boolean;
+	showDateButtons: boolean;
+	showTimeButtons: boolean;
 	showAutomatically: boolean;
 	immediatelyShowCalendar: boolean;
 	autofocus: boolean;
@@ -346,7 +363,8 @@ interface DatepickerPluginSettings {
 }
 
 const DEFAULT_SETTINGS: DatepickerPluginSettings = {
-	showButtons: true,
+	showDateButtons: true,
+	showTimeButtons: true,
 	showAutomatically: false,
 	immediatelyShowCalendar: false,
 	autofocus: false,
@@ -830,11 +848,21 @@ class DatepickerSettingTab extends PluginSettingTab {
 
 		new Setting(settingsContainerElement)
 			.setName('Show a picker button for dates')
-			.setDesc('Shows a button with a calendar icon associated with date and time values, select it to open the datepicker (Reloading Obsidian may be required)')
+			.setDesc('Shows a button with a calendar icon associated with date values, select it to open the picker (Reloading Obsidian may be required)')
 			.addToggle((toggle) => toggle
-				.setValue(DatepickerPlugin.settings.showButtons)
+				.setValue(DatepickerPlugin.settings.showDateButtons)
 				.onChange(async (value) => {
-					DatepickerPlugin.settings.showButtons = value;
+					DatepickerPlugin.settings.showDateButtons = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(settingsContainerElement)
+			.setName('Show a picker button for times')
+			.setDesc('Shows a button with a clock icon associated with time values, select it to open the picker (Reloading Obsidian may be required)')
+			.addToggle((toggle) => toggle
+				.setValue(DatepickerPlugin.settings.showTimeButtons)
+				.onChange(async (value) => {
+					DatepickerPlugin.settings.showTimeButtons = value;
 					await this.plugin.saveSettings();
 				}));
 
@@ -881,7 +909,7 @@ class DatepickerSettingTab extends PluginSettingTab {
 
 		new Setting(settingsContainerElement)
 			.setName('Insert new time in 24 hour format')
-			.setDesc('When performing insert new date and time command, insert time in 24 hour format')
+			.setDesc('Insert time in 24 hour format when performing "Insert new time" and "Insert new date and time" commands')
 			.addToggle((toggle) => toggle
 				.setValue(DatepickerPlugin.settings.insertIn24HourFormat)
 				.onChange(async (value) => {
