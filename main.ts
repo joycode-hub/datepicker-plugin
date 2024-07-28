@@ -542,6 +542,28 @@ export default class DatepickerPlugin extends Plugin {
 			}
 		});
 
+		this.addCommand({
+			id: 'insert-current-date',
+			name: 'Insert current date',
+			editorCallback: (editor: Editor) => {
+				// @ts-expect-error, not typed
+				const editorView = editor.cm as EditorView;
+				const cursorPosition = editorView.state.selection.main.to;
+				if (cursorPosition === undefined) return;
+				const pos = editorView.coordsAtPos(cursorPosition);
+				if (!pos) return;
+				Datepicker.performedInsertCommand = true;
+				editorView.dispatch({
+					changes: {
+						from: cursorPosition,
+						to: cursorPosition,
+						insert: moment().format("YYYY-MM-DD")
+					}
+				})
+			}
+		});
+
+
 
 		this.addSettingTab(new DatepickerSettingTab(this.app, this));
 		this.registerEvent(
