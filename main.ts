@@ -278,7 +278,7 @@ class DatepickerCMPlugin implements PluginValue {
 				}
 			} else this.performedSelectText = false;
 
-			if (DatepickerPlugin.settings.selectDateText && !this.performedSelectText && !update.docChanged) {
+			if (DatepickerPlugin.settings.selectDateText && !this.performedSelectText && (!update.docChanged || Datepicker.performedInsertCommand)) {
 				this.performedSelectText = true;
 				setTimeout(() => view.dispatch({ selection: { anchor: match.from, head: match.to } }), 250);
 			}
