@@ -5,6 +5,7 @@
 - Can automatically select date/time text for quick formatting.
 - Adds command to edit date and time.
 - Adds commands to insert a new date or date and time.
+- Adds commands to select previous/next date and time.
 
 ![datepicker-screenshot](./obsidian_datepicker_screenshot.png)
 
