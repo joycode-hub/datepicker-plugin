@@ -170,7 +170,7 @@ class DatepickerCMPlugin implements PluginValue {
 						 as their own date/time, eg: the time portion of a date/time is not seperate from the date portion, two dates on
 						 the same line with no space or seperation should not be recognized as several dates (this was a bug)
 						 */
-						if (dateMatches.some((m) => 
+						if (dateMatches.some((m) =>
 							matchingDateStart >= m.from && ((matchingDateEnd <= m.to) || (matchingDateStart <= m.to)))) continue;
 						dateMatches.push({ from: matchingDate.index + vt.from, to: matchingDate.index + matchingDate[0].length + vt.from, value: matchingDate[0], format: format });
 					}
@@ -187,9 +187,9 @@ class DatepickerCMPlugin implements PluginValue {
 			while ((matchingDate = format.regex.exec(noteText)) !== null) {
 				const matchingDateStart = matchingDate?.index!;
 				const matchingDateEnd = matchingDate?.index! + matchingDate![0].length;
-				if (dateMatches.some((m) => 
+				if (dateMatches.some((m) =>
 					matchingDateStart >= m.from && ((matchingDateEnd <= m.to) || (matchingDateStart <= m.to)))) continue;
-		dateMatches.push({ from: matchingDate.index, to: matchingDate.index + matchingDate[0].length, value: matchingDate[0], format: format });
+				dateMatches.push({ from: matchingDate.index, to: matchingDate.index + matchingDate[0].length, value: matchingDate[0], format: format });
 			}
 		});
 		return dateMatches;
@@ -197,7 +197,7 @@ class DatepickerCMPlugin implements PluginValue {
 
 	public getNextMatch(view: EditorView, cursorPosition: number): DateMatch | undefined {
 		const matches = this.getAllDates(view).sort((a, b) => a.from - b.from);
-			return matches.find(m => m.from > cursorPosition);		
+		return matches.find(m => m.from > cursorPosition);
 	}
 
 	public getPreviousMatch(view: EditorView, cursorPosition: number): DateMatch | undefined {
@@ -299,7 +299,7 @@ class DatepickerCMPlugin implements PluginValue {
 				if (this.previousDateMatch !== undefined) {
 					// prevent reopening date picker on the same date field when closed by button
 					// or when esc was pressed
-					if (this.previousDateMatch === match) {
+					if (this.previousDateMatch.from === match.from) {
 						if (this.datepicker?.closedByButton || Datepicker.escPressed) return;
 					} else {
 						this.performedSelectText = false;
@@ -312,13 +312,13 @@ class DatepickerCMPlugin implements PluginValue {
 
 			if (DatepickerPlugin.settings.selectDateText && !this.performedSelectText && (!update.docChanged || Datepicker.performedInsertCommand)) {
 				this.performedSelectText = true;
-				setTimeout(() => view.dispatch({ selection: { anchor: match.from, head: match.to } }), 650);
+				setTimeout(() => view.dispatch({ selection: { anchor: match.from, head: match.to } }), 300);
 			}
 
 			this.previousDateMatch = match;
 			if (DatepickerPlugin.settings.showAutomatically)
 				// prevent reopening date picker on the same date field when just performed insert command
-				if (Datepicker.performedInsertCommand) Datepicker.performedInsertCommand = false;
+				if (Datepicker.performedInsertCommand) setTimeout(() => Datepicker.performedInsertCommand = false, 350);
 				else
 					// delay is to allow app dom to update between active leaf switching, otherwise datepicker doesn't open on first click in a different leaf
 					setTimeout(() => {
@@ -373,8 +373,8 @@ function datepickerButtonEventHandler(e: Event, view: EditorView) {
 				Datepicker.openedByButton = true;
 				Datepicker.calendarImmediatelyShownOnce = false;
 				const dateMatch = dpCMPlugin!.dates.find(
-					date => date.from <= cursorPositionAtButton && date.to >= cursorPositionAtButton)!
-				if (DatepickerPlugin.settings.selectDateText) setTimeout(() => view.dispatch({ selection: { anchor: dateMatch.from, head: dateMatch.to } }), 100);
+					date => date.from <= cursorPositionAtButton && date.to >= cursorPositionAtButton)!;
+				if (DatepickerPlugin.settings.selectDateText) setTimeout(() => view.dispatch({ selection: { anchor: dateMatch.from, head: dateMatch.to } }), 50);
 				dpCMPlugin!.openDatepicker(view,
 					dateMatch
 					,);
@@ -387,6 +387,7 @@ interface DatepickerPluginSettings {
 	showDateButtons: boolean;
 	showTimeButtons: boolean;
 	showAutomatically: boolean;
+	autoApplyEdits: boolean;
 	immediatelyShowCalendar: boolean;
 	autofocus: boolean;
 	focusOnArrowDown: boolean;
@@ -398,6 +399,7 @@ const DEFAULT_SETTINGS: DatepickerPluginSettings = {
 	showDateButtons: true,
 	showTimeButtons: true,
 	showAutomatically: false,
+	autoApplyEdits: true,
 	immediatelyShowCalendar: false,
 	autofocus: false,
 	focusOnArrowDown: false,
@@ -453,6 +455,7 @@ export default class DatepickerPlugin extends Plugin {
 					(result) => {
 						if (moment(result).isValid() === true) {
 							setTimeout(() => { // delay to wait for editor update to finish
+								Datepicker.performedInsertCommand = true;
 								editorView.dispatch({
 									changes: {
 										from: cursorPosition,
@@ -461,7 +464,6 @@ export default class DatepickerPlugin extends Plugin {
 									}
 								})
 							}, 250);
-							Datepicker.performedInsertCommand = true;
 							datepicker.closeAll();
 						} else new Notice("Please enter a valid date");
 					}
@@ -490,6 +492,7 @@ export default class DatepickerPlugin extends Plugin {
 							if (DatepickerPlugin.settings.insertIn24HourFormat) timeFormat = "HH:mm";
 							else timeFormat = "hh:mm A";
 							setTimeout(() => { // delay to wait for editor update to finish
+								Datepicker.performedInsertCommand = true;
 								editorView.dispatch({
 									changes: {
 										from: cursorPosition,
@@ -498,7 +501,6 @@ export default class DatepickerPlugin extends Plugin {
 									}
 								})
 							}, 250);
-							Datepicker.performedInsertCommand = true;
 							datepicker.closeAll();
 						} else new Notice("Please enter a valid time");
 					}
@@ -522,12 +524,12 @@ export default class DatepickerPlugin extends Plugin {
 				datepicker.open(
 					{ top: pos.top, left: pos.left, right: pos.right, bottom: pos.bottom }, dateType,
 					(result) => {
-						// TODO: format time according to picker local format
 						if (moment(result).isValid() === true) {
 							let timeFormat: string;
 							if (DatepickerPlugin.settings.insertIn24HourFormat) timeFormat = "HH:mm";
 							else timeFormat = "hh:mm A";
-							setTimeout(() => { // delay to wait for editor update to finish								
+							setTimeout(() => { // delay to wait for editor update to finish		
+								Datepicker.performedInsertCommand = true;
 								editorView.dispatch({
 									changes: {
 										from: cursorPosition,
@@ -536,7 +538,6 @@ export default class DatepickerPlugin extends Plugin {
 									}
 								})
 							}, 250);
-							Datepicker.performedInsertCommand = true;
 							datepicker.closeAll();
 						} else new Notice("Please enter a valid date and time");
 					}
@@ -618,15 +619,15 @@ export default class DatepickerPlugin extends Plugin {
 				const dpCMPlugin = editorView.plugin(datepickerCMPlugin);
 				if (!dpCMPlugin) return;
 				const match = dpCMPlugin.getNextMatch(editorView, cursorPosition);
-				if(match){
-				editorView.dispatch({
-					selection: {
-						anchor: match.from,
-						head: match.from						
-					},
-					scrollIntoView: true
-				})
-				}else new Notice("No next date/time found");
+				if (match) {
+					editorView.dispatch({
+						selection: {
+							anchor: match.from,
+							head: match.from
+						},
+						scrollIntoView: true
+					})
+				} else new Notice("No next date/time found");
 			}
 		});
 
@@ -641,15 +642,15 @@ export default class DatepickerPlugin extends Plugin {
 				const dpCMPlugin = editorView.plugin(datepickerCMPlugin);
 				if (!dpCMPlugin) return;
 				const match = dpCMPlugin.getPreviousMatch(editorView, cursorPosition);
-				if(match){
-				editorView.dispatch({
-					selection: {
-						anchor: match.from,
-						head: match.from						
-					},
-					scrollIntoView: true
-				})
-				}else new Notice("No previous date/time found");
+				if (match) {
+					editorView.dispatch({
+						selection: {
+							anchor: match.from,
+							head: match.from
+						},
+						scrollIntoView: true
+					})
+				} else new Notice("No previous date/time found");
 			}
 		});
 
@@ -735,9 +736,10 @@ class Datepicker {
 		Datepicker.closeAll();
 	}
 
-	private submit() {
+	public submit() {
 		let submitValue = this.pickerInput.value;
 		if (submitValue.length === 0) return;
+		if (submitValue === this.datetime.value) return;
 		if (this.onSubmit !== undefined)
 			if (this.datetime.format.type === "TIME")
 				// Neccessary for momentjs to parse and format time
@@ -799,7 +801,7 @@ class Datepicker {
 				this.enterPressed = true;
 				this.submit();
 				buttonEventAbortController.abort();
-					Datepicker.closeAll();
+				Datepicker.closeAll();
 			}
 		}
 		acceptButton.addEventListener('click', acceptButtonEventHandler, { signal: buttonEventAbortController.signal });
@@ -845,7 +847,7 @@ class Datepicker {
 				} else {
 					this.enterPressed = true;
 					this.submit();
-						Datepicker.closeAll();
+					Datepicker.closeAll();
 				}
 			}
 			// this works only when the datepicker is in focus
@@ -858,11 +860,11 @@ class Datepicker {
 
 		const blurEventHandler = () => {
 			setTimeout(() => {
-				if (!Datepicker.escPressed && !this.enterPressed)
+				if (!Datepicker.escPressed && !this.enterPressed && DatepickerPlugin.settings.autoApplyEdits)
 					this.submit();
-			}, 600);
+			}, 250);
 		}
-		this.pickerInput.addEventListener('blur', blurEventHandler);
+		this.pickerInput.addEventListener('blur', blurEventHandler,);
 
 		this.updatePosition(pos);
 
@@ -883,13 +885,14 @@ class Datepicker {
 
 		if (DatepickerPlugin.settings.immediatelyShowCalendar) {
 			if (Datepicker.calendarImmediatelyShownOnce) return;
+			this.pickerInput.focus();
 			// delay is necessary because showing immediately doesn't show the calendar
 			// in the correct position, maybe it shows the calendar before the dom is updated
 			setTimeout(() => {
 				if (Datepicker.isOpened)
 					(this.pickerInput as any).showPicker();
 				Datepicker.calendarImmediatelyShownOnce = true;
-			}, 150);
+			}, 300);
 
 		}
 
@@ -937,6 +940,16 @@ class DatepickerSettingTab extends PluginSettingTab {
 				.setValue(DatepickerPlugin.settings.showAutomatically)
 				.onChange(async (value) => {
 					DatepickerPlugin.settings.showAutomatically = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(settingsContainerElement)
+			.setName('Auto apply edits')
+			.setDesc('Will automatically apply edits made to the date when the datepicker closes or loses focus')
+			.addToggle((toggle) => toggle
+				.setValue(DatepickerPlugin.settings.autoApplyEdits)
+				.onChange(async (value) => {
+					DatepickerPlugin.settings.autoApplyEdits = value;
 					await this.plugin.saveSettings();
 				}));
 
