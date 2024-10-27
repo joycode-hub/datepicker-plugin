@@ -266,11 +266,16 @@ class DatepickerCMPlugin implements PluginValue {
 						// Use the user's preferred format when editing dates
 						const dateFromPicker = resultFromPicker.format(
 							match.format.type === 'DATETIME'
-								? DatepickerPlugin.settings.dateFormat + " " + (match.format.formatToUser.includes('A') ? 'hh:mm A' : 'HH:mm')
+								? (DatepickerPlugin.settings.overrideFormat 
+									? DatepickerPlugin.settings.dateFormat + " " + (match.format.formatToUser.includes('A') ? 'hh:mm A' : 'HH:mm')
+									: match.format.formatToUser)
 								: match.format.type === 'DATE'
-									? DatepickerPlugin.settings.dateFormat
+									? (DatepickerPlugin.settings.overrideFormat 
+										? DatepickerPlugin.settings.dateFormat 
+										: match.format.formatToUser)
 									: match.format.formatToUser
 						);
+												
 						if (dateFromPicker === match.value) return;
 						this.performingReplace = true;
 						setTimeout(() => { this.performingReplace = false; }, 300);
@@ -434,6 +439,7 @@ function datepickerButtonEventHandler(e: Event, view: EditorView) {
 
 interface DatepickerPluginSettings {
 	dateFormat: string;
+	overrideFormat: boolean;
 	showDateButtons: boolean;
 	showTimeButtons: boolean;
 	showAutomatically: boolean;
@@ -447,6 +453,7 @@ interface DatepickerPluginSettings {
 
 const DEFAULT_SETTINGS: DatepickerPluginSettings = {
 	dateFormat: 'YYYY-MM-DD',
+	overrideFormat: false,
 	showDateButtons: true,
 	showTimeButtons: true,
 	showAutomatically: false,
@@ -1012,7 +1019,7 @@ class DatepickerSettingTab extends PluginSettingTab {
 
 		new Setting(settingsContainerElement)
 			.setName('Date Format')
-			.setDesc('Choose your preferred date format')
+			.setDesc('Choose your preferred date format for inserting new dates')
 			.addDropdown(dropdown => dropdown
 				.addOption('YYYY-MM-DD', 'YYYY-MM-DD')
 				.addOption('DD.MM.YYYY', 'DD.MM.YYYY')
@@ -1026,6 +1033,16 @@ class DatepickerSettingTab extends PluginSettingTab {
 				.setValue(DatepickerPlugin.settings.dateFormat)
 				.onChange(async (value) => {
 					DatepickerPlugin.settings.dateFormat = value;
+					await this.plugin.saveSettings();
+				}));
+
+		new Setting(settingsContainerElement)
+			.setName('Use date format when modifying existing dates')
+			.setDesc('Use the selected date format when modifying existing dates')
+			.addToggle((toggle) => toggle
+				.setValue(DatepickerPlugin.settings.overrideFormat)
+				.onChange(async (value) => {
+					DatepickerPlugin.settings.overrideFormat = value;
 					await this.plugin.saveSettings();
 				}));
 
