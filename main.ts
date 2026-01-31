@@ -128,24 +128,58 @@ class DatepickerCMPlugin implements PluginValue {
 		const userFormat = DatepickerPlugin.settings.dateFormat;
 		const userSeparator = userFormat.includes('.') ? '\\.' : (userFormat.includes('/') ? '\\/' : '-');
 
+		// Helper function to create date regex with proper validation
+		const createDateRegex = (yearPattern: string, monthPattern: string, dayPattern: string, separator: string) => {
+			return new RegExp(`(${yearPattern})${separator}(${monthPattern})${separator}(${dayPattern})`, 'g');
+		};
+
 		// Add datetime formats for all patterns
 		formatPatterns.forEach(format => {
 			const separator = format.includes('.') ? '\\.' : (format.includes('/') ? '\\/' : '-');
+			
+			// Determine the specific patterns based on the format
+			let yearPattern, monthPattern, dayPattern;
+			
+			if (format === 'YYYY-MM-DD' || format === 'YYYY.MM.DD' || format === 'YYYY/MM/DD') {
+				// YYYY-MM-DD format: 4-digit year, 2-digit month, 2-digit day
+				yearPattern = '\\d{4}';
+				monthPattern = '(0[1-9]|1[0-2])';
+				dayPattern = '(0[1-9]|[12][0-9]|3[01])';
+			} else if (format === 'DD.MM.YYYY' || format === 'DD-MM-YYYY' || format === 'DD/MM/YYYY') {
+				// DD-MM-YYYY format: 2-digit day, 2-digit month, 4-digit year
+				dayPattern = '(0[1-9]|[12][0-9]|3[01])';
+				monthPattern = '(0[1-9]|1[0-2])';
+				yearPattern = '\\d{4}';
+			} else if (format === 'MM-DD-YYYY' || format === 'MM.DD.YYYY' || format === 'MM/DD/YYYY') {
+				// MM-DD-YYYY format: 2-digit month, 2-digit day, 4-digit year
+				monthPattern = '(0[1-9]|1[0-2])';
+				dayPattern = '(0[1-9]|[12][0-9]|3[01])';
+				yearPattern = '\\d{4}';
+			} else {
+				// Fallback for other formats - use more restrictive patterns
+				yearPattern = '\\d{4}';
+				monthPattern = '(0[1-9]|1[0-2])';
+				dayPattern = '(0[1-9]|[12][0-9]|3[01])';
+			}
+			
+			// Date regex with proper validation
+			const dateRegex = createDateRegex(yearPattern, monthPattern, dayPattern, separator);
+			
 			formats.push(
 				{
-					regex: new RegExp(`\\d{1,4}${separator}\\d{1,2}${separator}\\d{1,4} \\d{1,2}:\\d{1,2}( )?([apm]{2})`, 'ig'),
+					regex: new RegExp(`(${yearPattern})${separator}(${monthPattern})${separator}(${dayPattern}) \\d{1,2}:\\d{2}( )?([apm]{2})`, 'ig'),
 					formatToUser: `${format} hh:mm A`,
 					formatToPicker: "YYYY-MM-DDTHH:mm",
 					type: 'DATETIME'
 				},
 				{
-					regex: new RegExp(`\\d{1,4}${separator}\\d{1,2}${separator}\\d{1,4} \\d{1,2}:\\d{1,2}`, 'g'),
+					regex: new RegExp(`(${yearPattern})${separator}(${monthPattern})${separator}(${dayPattern}) \\d{1,2}:\\d{2}`, 'g'),
 					formatToUser: `${format} HH:mm`,
 					formatToPicker: "YYYY-MM-DDTHH:mm",
 					type: 'DATETIME'
 				},
 				{
-					regex: new RegExp(`\\d{1,4}${separator}\\d{1,2}${separator}\\d{1,4}`, 'g'),
+					regex: dateRegex,
 					formatToUser: format,
 					formatToPicker: "YYYY-MM-DD",
 					type: 'DATE'
@@ -156,13 +190,13 @@ class DatepickerCMPlugin implements PluginValue {
 		// Add time formats
 		formats.push(
 			{
-				regex: /\d{1,2}:\d{1,2}( )?([apm]{2})/ig,
+				regex: /\d{1,2}:\d{2}( )?([apm]{2})/ig,
 				formatToUser: "hh:mm A",
 				formatToPicker: "HH:mm",
 				type: 'TIME'
 			},
 			{
-				regex: /\d{1,2}:\d{1,2}/g,
+				regex: /\d{1,2}:\d{2}/g,
 				formatToUser: "HH:mm",
 				formatToPicker: "HH:mm",
 				type: 'TIME'
