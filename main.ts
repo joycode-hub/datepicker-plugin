@@ -212,7 +212,7 @@ class DatepickerCMPlugin implements PluginValue {
 					while ((matchingDate = format.regex.exec(vt.text ?? "")) !== null) {
 						const matchingDateStart = matchingDate?.index! + vt.from;
 						const matchingDateEnd = matchingDate?.index! + matchingDate![0].length + vt.from;
-						if (!isValidDateMatch(matchingDate[0], format.formatToUser)) continue;
+						if (!isValidDateMatch(matchingDate[0], format.formatToUser, vt.text, matchingDate.index)) continue;
 						
 						// Skip dates that are inside codeblocks
 						if (this.isInCodeblock(view, matchingDateStart)) continue;
@@ -239,7 +239,7 @@ class DatepickerCMPlugin implements PluginValue {
 			while ((matchingDate = format.regex.exec(noteText)) !== null) {
 				const matchingDateStart = matchingDate?.index!;
 				const matchingDateEnd = matchingDate?.index! + matchingDate![0].length;
-				if (!isValidDateMatch(matchingDate[0], format.formatToUser)) continue;
+				if (!isValidDateMatch(matchingDate[0], format.formatToUser, noteText, matchingDate.index)) continue;
 				
 				// Skip dates that are inside codeblocks
 				if (this.isInCodeblock(view, matchingDateStart)) continue;

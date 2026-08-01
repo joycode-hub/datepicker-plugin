@@ -23,7 +23,12 @@ function daysInMonth(year: number, month: number): number {
 	return days[month - 1];
 }
 
-export function isValidDateMatch(value: string, format: string): boolean {
+export function isValidDateMatch(
+	value: string,
+	format: string,
+	sourceText: string = value,
+	startIndex: number = 0,
+): boolean {
 	const tokens: FormatToken[] = [];
 	const tokenRegex = /YYYY|MM|DD|HH|hh|mm|A/g;
 	let pattern = '^';
@@ -50,6 +55,12 @@ export function isValidDateMatch(value: string, format: string): boolean {
 	pattern += `${escapeRegex(format.slice(lastIndex))}$`;
 	const match = new RegExp(pattern, 'i').exec(value);
 	if (!match) return false;
+
+	const isDateOnlyFormat = !/(?:HH|hh|mm|A)/.test(format);
+	const trailingText = sourceText.slice(startIndex + value.length);
+	if (isDateOnlyFormat && /^[ 	]+\d{1,2}:\d{1,2}(?:[ 	]*[apm]{2})?/i.test(trailingText)) {
+		return false;
+	}
 
 	const components: Partial<Record<FormatToken, string>> = {};
 	tokens.forEach((token, index) => {

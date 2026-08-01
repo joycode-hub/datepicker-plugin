@@ -32,5 +32,11 @@ assert.equal(isValidDateMatch("23:99", "HH:mm"), false);
 assert.equal(isValidDateMatch("9:05", "HH:mm"), true);
 assert.equal(isValidDateMatch("2024-03-01 23:59", "YYYY-MM-DD HH:mm"), true);
 assert.equal(isValidDateMatch("2024-03-01 24:00", "YYYY-MM-DD HH:mm"), false);
+assert.equal(
+	isValidDateMatch("2024-03-01", "YYYY-MM-DD", "2024-03-01 24:00", 0),
+	false,
+	"the valid date prefix of an invalid datetime must not be detected separately",
+);
+assert.equal(isValidDateMatch("2024-03-01", "YYYY-MM-DD", "Release 2024-03-01", 8), true);
 
 console.log("date validation tests passed");
